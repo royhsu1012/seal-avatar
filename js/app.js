@@ -461,7 +461,7 @@
       rig.apply(current, dt, state);
       updateDebug(state);
     }
-    if (diag && (tracking || demo) && now - lastDiagAt >= 1000) {
+    if (diag && (tracking || demo || MODE === 'viewer') && now - lastDiagAt >= 1000) {
       lastDiagAt = now;
       sendDiag(state);
     }
