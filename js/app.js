@@ -80,6 +80,9 @@
   let tracking = false;
   let demo = false;
   let mirror = true;
+  let lastRaw = null; // 最近一次未校正、未鏡像的原始參數（診斷用）
+  let diag = false;
+  let lastDiagAt = 0;
 
   let lastSeenAt = performance.now();
   let lastVideoTime = -1;
@@ -346,6 +349,7 @@
       }
       const raw = result ? extract(result, video.videoWidth, video.videoHeight) : null;
       if (raw) {
+        lastRaw = raw;
         target = toTarget(raw);
         lastSeenAt = now;
         if (ui.status.textContent !== '追蹤中' && ui.status.textContent !== '已校正正面') setStatus('追蹤中', 'live');
@@ -387,6 +391,37 @@
       rig.apply(current, dt, state);
       updateDebug(state);
     }
+    if (diag && (tracking || demo) && now - lastDiagAt >= 1000) {
+      lastDiagAt = now;
+      sendDiag(state);
+    }
+  }
+
+  /** 診斷模式：把目前數值以 GET /diag?... 送到本機伺服器，serve.ps1 會印在終端機上 */
+  function sendDiag(state) {
+    const n = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
+    const q = new URLSearchParams({
+      st: state,
+      fps: String(fps),
+      yaw: n(current.yaw),
+      pitch: n(current.pitch),
+      roll: n(current.roll),
+      bL: n(current.blinkL),
+      bR: n(current.blinkR),
+      jaw: n(current.jaw),
+      smile: n(current.smile),
+      present: current.present ? '1' : '0',
+    });
+    if (lastRaw) {
+      q.set('rYaw', n(lastRaw.yaw));
+      q.set('rPitch', n(lastRaw.pitch));
+      q.set('rRoll', n(lastRaw.roll));
+      q.set('rBlinkL', n(lastRaw.blinkLeft));
+      q.set('rBlinkR', n(lastRaw.blinkRight));
+      q.set('rJaw', n(lastRaw.jaw));
+      q.set('rSmile', n(lastRaw.smile));
+    }
+    fetch('/diag?' + q.toString(), { cache: 'no-store', keepalive: true }).catch(() => {});
   }
 
   // 除錯介面：在瀏覽器主控台可用 sealVTuber.TUNING 即時調參數，
@@ -444,6 +479,8 @@
   if (params.has('bg')) setBackground(params.get('bg'));
   if (params.get('ui') === '0') body.classList.add('ui-hidden');
   if (params.has('mirror')) setMirror(params.get('mirror') !== '0');
+  if (params.get('preview') === '1') setPreview(true);
+  diag = params.get('diag') === '1';
   if (window.obsstudio) body.classList.add('ui-hidden'); // 放進 OBS 瀏覽器來源時自動隱藏面板
   setStatus('待命');
   if (params.get('demo') === '1') toggleDemo();

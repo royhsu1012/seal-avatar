@@ -72,6 +72,8 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | `autostart=1` | 載入後自動啟動攝影機 |
 | `demo=1` | 直接進入示範模式 |
 | `mirror=0` | 關閉鏡像 |
+| `preview=1` | 顯示攝影機縮圖 |
+| `diag=1` | 診斷模式：每秒把追蹤數值寫一行到 `tools\serve.ps1` 的終端機，方便調整靈敏度。只送到本機伺服器 |
 
 ## 接進 OBS
 

@@ -42,12 +42,22 @@ Write-Host "Open   http://localhost:$Port/   (Ctrl+C to stop)"
 
 try {
   while ($listener.IsListening) {
-    $ctx = $listener.GetContext()
+    # 用非同步等待取代阻塞的 GetContext，這樣 Ctrl+C 才能即時中斷
+    $pending = $listener.BeginGetContext($null, $null)
+    while (-not $pending.AsyncWaitHandle.WaitOne(500)) { }
+    $ctx = $listener.EndGetContext($pending)
     $req = $ctx.Request
     $res = $ctx.Response
     try {
       $rel = [Uri]::UnescapeDataString($req.Url.AbsolutePath).TrimStart('/')
       if ($rel -eq '') { $rel = 'index.html' }
+      if ($rel -eq 'diag') {
+        # 診斷模式（網頁加 ?diag=1）：把追蹤數值印出來，方便除錯
+        $res.StatusCode = 204
+        $res.Headers.Add('Cache-Control', 'no-store')
+        Write-Host ("{0} DIAG {1}" -f (Get-Date -Format 'HH:mm:ss'), [Uri]::UnescapeDataString($req.Url.Query.TrimStart('?')).Replace('&', '  '))
+        continue
+      }
       $full = [IO.Path]::GetFullPath((Join-Path $Root $rel))
       if (-not $full.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $full -PathType Leaf)) {
         $res.StatusCode = 404
