@@ -57,7 +57,7 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | 控制 | 快捷鍵 | 說明 |
 |---|---|---|
 | 啟動 / 停止攝影機 | | 第一次會要求攝影機權限 |
-| 校正正面 | C | 把目前的頭部姿勢當成正面。坐好、看著鏡頭按一下 |
+| 校正正面 | C | 取接下來約 1.2 秒的平均姿勢當成正面，同時量測睜眼基準值。啟動攝影機後第一次看到臉會自動校正一次，所以按下按鈕後請先看著鏡頭兩秒；換了坐姿再按 C 重校 |
 | 示範模式 | D | 不用攝影機，輪流演示平常 → 說話 → 開心 → 驚訝 → 睡覺 |
 | 鏡像 | M | 預設開啟，像照鏡子一樣。關掉會變成觀眾視角 |
 | 顯示攝影機畫面 | V | 右下角顯示攝影機縮圖，方便對位 |
@@ -123,7 +123,8 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 
 `js/app.js` 最上面的 `TUNING` 物件集中了所有可調參數：
 
-- `blink` / `jaw` / `smile`：blendshape 分數對應到 0～1 的區間，覺得太敏感就把 `lo` 調高
+- `blink` / `jaw` / `smile`：blendshape 分數對應到 0～1 的區間，覺得太敏感就把 `lo` 調高。`blink` 是相對於校正時量到的睜眼基準值
+- `autoCalibrate` / `calibrationMs`：是否在啟動後自動校正、校正取樣多久
 - `yawGain` / `pitchGain`：轉頭幅度
 - `follow`：平滑速度，數字越大越跟手、越小越柔
 - `sleepAfterMs`：多久沒看到臉進入睡覺
@@ -145,7 +146,7 @@ tools/serve.ps1   零相依的本機靜態伺服器
 
 1. `getUserMedia` 取得攝影機畫面
 2. MediaPipe Face Landmarker 在瀏覽器內（GPU 或 WASM）算出臉部特徵點與 blendshape
-3. 由鼻尖相對臉框的位置算 yaw / pitch，由兩眼連線角度算 roll
+3. 由鼻尖相對臉頰中點算 yaw、相對額頭到上唇區間算 pitch（不用下巴，張嘴才不會誤判成抬頭），由兩眼連線角度算 roll
 4. 從 blendshape 取 `eyeBlinkLeft/Right`、`jawOpen`、`mouthSmileLeft/Right`
 5. 指數平滑後交給 `SealRig`，用 SVG `transform` 與 `opacity` 畫出來
 6. 依 smile / jaw / 多久沒看到臉判斷狀態，驅動對應反應

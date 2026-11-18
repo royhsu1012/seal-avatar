@@ -67,7 +67,7 @@
     static classify(p, absentMs, sleepAfterMs) {
       if (!p.present && absentMs >= sleepAfterMs) return 'sleep';
       if (p.smile > 0.5) return 'happy';
-      if (p.jaw > 0.55 && p.smile < 0.3) return 'surprised';
+      if (p.jaw > 0.7 && p.smile < 0.3) return 'surprised';
       if (p.jaw > 0.15) return 'talking';
       return 'idle';
     }

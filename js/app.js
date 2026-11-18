@@ -15,15 +15,21 @@
       'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
 
     // blendshape 分數 → 0..1 的對應區間（lo 以下視為 0，hi 以上視為 1）
-    blink: { lo: 0.25, hi: 0.6 },
-    jaw: { lo: 0.05, hi: 0.5 },
+    // blink 是「相對於靜止基準值」的區間，基準值由校正時量測（每個人睜眼時的分數不同，約 0.1～0.3）
+    blink: { lo: 0.12, hi: 0.5 },
+    blinkBaseDefault: 0.15, // 尚未校正前假設的睜眼基準值
+    jaw: { lo: 0.08, hi: 0.5 },
     smile: { lo: 0.12, hi: 0.65 },
 
-    // 頭部姿勢增益；pitchNeutral 是鼻尖在臉上的自然偏下位置
-    yawGain: 2.2,
-    pitchGain: 2.6,
-    pitchNeutral: 0.12,
+    // 頭部姿勢增益；pitchNeutral 是鼻尖在「額頭～上唇」區間裡的自然位置，校正後會再修正
+    yawGain: 1.8,
+    pitchGain: 2.0,
+    pitchNeutral: 0.6,
     rollMax: 30,
+
+    // 校正：取這段時間內的平均當作正面，避免按下去那一瞬間剛好在動
+    calibrationMs: 1200,
+    autoCalibrate: true, // 啟動攝影機、第一次看到臉之後自動校正一次
 
     // 平滑跟隨速度（每秒），越大越跟得緊、越小越柔
     follow: { pose: 14, blink: 30, jaw: 22, smile: 8 },
@@ -72,8 +78,13 @@
 
   let target = { ...NEUTRAL }; // 追蹤器算出的目標值
   let current = { ...NEUTRAL }; // 平滑後送給 rig 的值
+
+  // 校正：calib 是正面時的原始姿勢，blinkBase 是睜眼時的 blendshape 基準值
   const calib = { yaw: 0, pitch: 0, roll: 0 };
-  let wantCalibrate = false;
+  const blinkBase = { left: TUNING.blinkBaseDefault, right: TUNING.blinkBaseDefault };
+  let calibSamples = null; // 校正進行中時累積樣本
+  let autoCalibratePending = false;
+  let statusKey = '';
 
   let landmarker = null;
   let stream = null;
@@ -92,7 +103,8 @@
   let fps = 0;
 
   // ---------- UI ----------
-  function setStatus(text, kind) {
+  function setStatus(text, kind, key) {
+    statusKey = key || text;
     ui.status.textContent = text;
     ui.status.className = 'status' + (kind ? ' is-' + kind : '');
   }
@@ -157,19 +169,20 @@
     const lm = result.faceLandmarks && result.faceLandmarks[0];
     if (!lm) return null;
 
-    // 特徵點編號：1 鼻尖、234/454 臉頰兩側、10 額頭、152 下巴、33/263 兩眼外角
+    // 特徵點編號：1 鼻尖、234/454 臉頰兩側、10 額頭、0 上唇中央、33/263 兩眼外角
+    // 俯仰用「額頭～上唇」而不是「額頭～下巴」當基準，張嘴時下巴會往下移、上唇幾乎不動
     const nose = lm[1];
     const cheekA = lm[234];
     const cheekB = lm[454];
     const top = lm[10];
-    const chin = lm[152];
+    const lip = lm[0];
     const eyeA = lm[33];
     const eyeB = lm[263];
 
     const halfW = Math.abs(cheekB.x - cheekA.x) / 2 || 1e-6;
-    const halfH = Math.abs(chin.y - top.y) / 2 || 1e-6;
+    const halfH = Math.abs(lip.y - top.y) / 2 || 1e-6;
     const yaw = ((nose.x - (cheekA.x + cheekB.x) / 2) / halfW) * TUNING.yawGain;
-    const pitch = ((nose.y - (top.y + chin.y) / 2) / halfH - TUNING.pitchNeutral) * TUNING.pitchGain;
+    const pitch = ((nose.y - (top.y + lip.y) / 2) / halfH - TUNING.pitchNeutral) * TUNING.pitchGain;
 
     // 兩眼連線的角度就是側傾；乘上影像寬高避免被長寬比拉歪
     let dx = (eyeB.x - eyeA.x) * width;
@@ -195,19 +208,48 @@
     };
   }
 
+  /** 開始校正：接下來 calibrationMs 內的平均姿勢會被當成正面、平均眨眼分數當成睜眼基準 */
+  function beginCalibration() {
+    calibSamples = {
+      until: performance.now() + TUNING.calibrationMs,
+      n: 0,
+      yaw: 0,
+      pitch: 0,
+      roll: 0,
+      blinkLeft: 0,
+      blinkRight: 0,
+    };
+    setStatus('校正中，請看著鏡頭…', null, 'calibrating');
+  }
+
+  function accumulateCalibration(raw, now) {
+    const c = calibSamples;
+    c.n++;
+    c.yaw += raw.yaw;
+    c.pitch += raw.pitch;
+    c.roll += raw.roll;
+    c.blinkLeft += raw.blinkLeft;
+    c.blinkRight += raw.blinkRight;
+    if (now < c.until) return;
+    calib.yaw = c.yaw / c.n;
+    calib.pitch = c.pitch / c.n;
+    calib.roll = c.roll / c.n;
+    blinkBase.left = c.blinkLeft / c.n;
+    blinkBase.right = c.blinkRight / c.n;
+    calibSamples = null;
+    setStatus('已校正正面', 'live', 'calibrated');
+  }
+
   /** 原始參數 → 校正、鏡像、重新對應成 rig 參數 */
-  function toTarget(raw) {
-    if (wantCalibrate) {
-      calib.yaw = raw.yaw;
-      calib.pitch = raw.pitch;
-      calib.roll = raw.roll;
-      wantCalibrate = false;
-      setStatus('已校正正面', 'live');
-    }
+  function toTarget(raw, now) {
+    if (calibSamples) accumulateCalibration(raw, now);
     const s = mirror ? -1 : 1;
+    // 眨眼分數先扣掉睜眼基準值，再對應到 0..1
+    const blinkLeft = raw.blinkLeft - blinkBase.left;
+    const blinkRight = raw.blinkRight - blinkBase.right;
     // 鏡像時本人的左眼在畫面左邊；非鏡像（觀眾視角）則相反
-    const blinkScreenL = mirror ? raw.blinkLeft : raw.blinkRight;
-    const blinkScreenR = mirror ? raw.blinkRight : raw.blinkLeft;
+    const blinkScreenL = mirror ? blinkLeft : blinkRight;
+    const blinkScreenR = mirror ? blinkRight : blinkLeft;
     return {
       yaw: clamp(s * (raw.yaw - calib.yaw), -1, 1),
       pitch: clamp(raw.pitch - calib.pitch, -1, 1),
@@ -259,10 +301,11 @@
     tracking = true;
     lastVideoTime = -1;
     lastSeenAt = performance.now();
+    autoCalibratePending = TUNING.autoCalibrate;
     ui.btnCam.disabled = false;
     ui.btnCam.textContent = '停止攝影機';
     ui.btnCal.disabled = false;
-    setStatus('追蹤中', 'live');
+    setStatus('追蹤中', 'live', 'tracking');
   }
 
   function stopCamera() {
@@ -274,6 +317,8 @@
     video.srcObject = null;
     ui.btnCam.textContent = '啟動攝影機';
     ui.btnCal.disabled = true;
+    calibSamples = null;
+    autoCalibratePending = false;
     target = { ...NEUTRAL };
     setStatus('已停止');
   }
@@ -350,12 +395,19 @@
       const raw = result ? extract(result, video.videoWidth, video.videoHeight) : null;
       if (raw) {
         lastRaw = raw;
-        target = toTarget(raw);
+        if (autoCalibratePending) {
+          // 第一次看到臉就自動校正一次（使用者剛按下按鈕，通常正看著鏡頭）
+          autoCalibratePending = false;
+          beginCalibration();
+        }
+        target = toTarget(raw, now);
         lastSeenAt = now;
-        if (ui.status.textContent !== '追蹤中' && ui.status.textContent !== '已校正正面') setStatus('追蹤中', 'live');
+        if (statusKey !== 'tracking' && statusKey !== 'calibrated' && statusKey !== 'calibrating') {
+          setStatus('追蹤中', 'live', 'tracking');
+        }
       } else {
         target = { ...target, present: false };
-        setStatus('沒有偵測到臉');
+        if (statusKey !== 'noface') setStatus('沒有偵測到臉', null, 'noface');
       }
       fpsCount++;
       if (now - fpsAt >= 1000) {
@@ -420,6 +472,10 @@
       q.set('rBlinkR', n(lastRaw.blinkRight));
       q.set('rJaw', n(lastRaw.jaw));
       q.set('rSmile', n(lastRaw.smile));
+      q.set('cYaw', n(calib.yaw));
+      q.set('cPitch', n(calib.pitch));
+      q.set('baseL', n(blinkBase.left));
+      q.set('baseR', n(blinkBase.right));
     }
     fetch('/diag?' + q.toString(), { cache: 'no-store', keepalive: true }).catch(() => {});
   }
@@ -432,8 +488,14 @@
     rig,
     TUNING,
     tick,
+    calibrate: beginCalibration,
     pause: (on) => {
       paused = !!on;
+    },
+    // 測試用：把原始參數丟進校正、鏡像與對應流程
+    _toTarget: toTarget,
+    get calibration() {
+      return { ...calib, blinkBase: { ...blinkBase } };
     },
     get current() {
       return { ...current };
@@ -443,7 +505,7 @@
   // ---------- 事件 ----------
   ui.btnCam.addEventListener('click', startCamera);
   ui.btnCal.addEventListener('click', () => {
-    wantCalibrate = true;
+    if (tracking) beginCalibration();
   });
   ui.btnDemo.addEventListener('click', toggleDemo);
   ui.chkMirror.addEventListener('change', () => setMirror(ui.chkMirror.checked));
@@ -460,7 +522,7 @@
         toggleDemo();
         break;
       case 'c':
-        if (tracking) wantCalibrate = true;
+        if (tracking) beginCalibration();
         break;
       case 'm':
         setMirror(!mirror);
