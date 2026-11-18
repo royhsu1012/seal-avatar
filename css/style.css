@@ -134,3 +134,34 @@ code {
 }
 body.show-cam .cam { display: block; }
 body.mirror .cam { transform: scaleX(-1); }
+
+/* ---------- 桌面浮動視窗（desktop/ 的 Electron 版） ----------
+   desktop/preload.js 會在 <html> 加上 desktop class，並放入 #desktop-grip 縮放握把。
+   整個舞台可以拖著走；控制面板、攝影機縮圖與握把本身不吃拖曳，才能正常點按。
+   一般瀏覽器裡沒有 desktop class，這一段完全不生效。 */
+html.desktop #stage { -webkit-app-region: drag; }
+html.desktop .panel,
+html.desktop .cam,
+html.desktop #desktop-grip { -webkit-app-region: no-drag; }
+
+#desktop-grip {
+  display: none;
+  position: fixed;
+  right: 2px;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  opacity: 0.35;
+  /* 三條斜線，像一般視窗右下角的縮放握把 */
+  background: linear-gradient(
+    135deg,
+    transparent 45%, #5a6b7a 45%, #5a6b7a 52%,
+    transparent 52%, transparent 63%, #5a6b7a 63%, #5a6b7a 70%,
+    transparent 70%, transparent 81%, #5a6b7a 81%, #5a6b7a 88%,
+    transparent 88%
+  );
+  transition: opacity 0.15s;
+}
+html.desktop #desktop-grip { display: block; }
+#desktop-grip:hover { opacity: 0.9; }

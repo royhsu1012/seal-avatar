@@ -143,6 +143,101 @@ Chrome / Edge 的追蹤頁 (?mode=tracker) ──攝影機追蹤──▶ 本機
 - 追蹤頁看得到你嗎？離開鏡頭範圍或光線太暗時會變成睡覺狀態
 - 完全不想用兩頁的話，也可以用視窗擷取：Chrome 開 `http://localhost:8788/?bg=green&ui=0&autostart=1`，OBS 新增「視窗擷取」選那個視窗，再加「色度鍵」濾鏡選綠色
 
+## 桌面浮動視窗（桌寵模式）
+
+想讓海豹直接浮在 Windows 桌面最上層、疊在任何軟體上面，不經過 OBS 也看得到，用 `desktop/` 裡的
+[Electron](https://www.electronjs.org/)（MIT）版本。它就是同一個網頁包進一個透明、無邊框、永遠置頂的視窗：
+
+- 海豹本體直接拖著走；右下角握把、Ctrl + 滾輪縮放
+- 永遠在最上層、滑鼠穿透（點擊落到下面的視窗）都可以開關
+- 內建一台和 `start-server.bat` 一樣的本機伺服器，所以 OBS 裡的顯示頁（`?mode=viewer`）同時照常動；
+  `start-server.bat` 已經在跑的話就直接沿用那台，不會衝突
+- 其他視窗取得焦點、甚至把海豹蓋住，追蹤仍然繼續
+- 視窗位置、大小與各種開關會記住，下次啟動還原
+
+### 安裝與啟動
+
+需要 [Node.js](https://nodejs.org/) LTS（只有自己跑原始碼或打包時需要，打包好的 exe 不需要）：
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+這會跳出一次管理員權限確認。沒有管理員權限的話，到 nodejs.org 下載「Windows Binary (.zip)」，
+解壓到例如 `%LOCALAPPDATA%\Programs\nodejs`，再把那個資料夾加進使用者的 PATH 即可。
+
+然後在專案目錄：
+
+```powershell
+cd desktop
+npm install
+npm start
+```
+
+第一次 `npm install` 會下載 Electron（約 100 MB）。`npm start` 之後海豹出現在主螢幕右下角，自動開攝影機並校正。
+關掉這個終端機視窗海豹也會跟著關，想長期用請打包成 exe（見下）。
+
+攝影機一次只能給一個程式用：如果 Chrome 的追蹤頁（`?mode=tracker`）還開著，桌面版會顯示
+「無法開啟攝影機：NotReadableError」（系統匣圖示會跳通知）。先關掉 Chrome 那一頁，再從選單打開控制面板按「啟動攝影機」，
+或直接重新啟動桌面版。
+
+### 操作
+
+| 動作 | 方式 |
+|---|---|
+| 移動 | 直接拖曳海豹 |
+| 縮放 | 拖右下角的握把、Ctrl + 滾輪、Ctrl + `=` / Ctrl + `-`；Ctrl + 0 回到預設大小位置 |
+| 選單 | 在海豹上按右鍵，或右下角系統匣的海豹圖示 |
+| 永遠在最上層 | 選單勾選，或 Ctrl + T |
+| 滑鼠穿透 | 選單勾選，或 Ctrl + P。開啟後點擊會穿過海豹落到下面的視窗，所以要關掉請用系統匣選單 |
+| 控制面板 | 選單「顯示控制面板」或按 H。校正、鏡像、攝影機縮圖都在面板上 |
+| 重新校正正面 | 選單，或 C |
+| 隱藏 / 顯示海豹 | 點一下系統匣圖示（隱藏時攝影機仍在追蹤，OBS 不會斷） |
+| 結束 | 選單「結束」或 Ctrl + Q |
+
+網頁本身的快捷鍵（H、C、D、M、V）在視窗有焦點時照常可用。系統匣圖示的提示文字會顯示目前的追蹤狀態，
+攝影機開不起來時會跳通知。
+
+### 同時給 OBS 用
+
+桌面版本身就是追蹤頁，不用再另外開瀏覽器的追蹤頁。OBS 顯示頁的網址照舊
+`http://localhost:8788/?mode=viewer&bg=transparent&ui=0`，選單裡有「複製 OBS 顯示頁網址」。
+
+### 連接埠
+
+預設 8788，和 `start-server.bat` 相同。埠被別的程式佔用時會跳出提示，可以改用別的埠（OBS 顯示頁網址也要跟著改）：
+
+```powershell
+npm start -- --port=8790
+```
+
+### 打包成可攜式 exe
+
+```powershell
+cd desktop
+npm run dist
+```
+
+產出 `desktop\dist\SealVTuber-0.1.0-portable.exe`，單一檔案、不用安裝，拿到任何 Windows 10/11 電腦都能跑
+（第一次執行會解壓到暫存資料夾，開得比較慢；執行時需要網路載入追蹤模型，與網頁版相同）。
+打包工具是 [electron-builder](https://www.electron.build/)（MIT）。
+
+換了正式繪圖之後，執行 `npm run icons` 會從 `index.html` 的海豹 SVG 重新產生 `desktop\assets\icon.png`（exe 與視窗圖示）
+和 `tray.png`（系統匣圖示）。
+
+### 檔案
+
+```
+desktop/package.json        相依與 electron-builder 打包設定
+desktop/main.js             主程序：視窗、系統匣與右鍵選單、狀態存檔
+desktop/preload.js          注入網頁的桌面層：拖曳區 class、縮放握把、狀態回報
+desktop/server.js           內建靜態伺服器與 /params、/diag（同 tools/serve.ps1）
+desktop/tools/make-icon.js  從海豹 SVG 產生圖示
+desktop/assets/             icon.png、tray.png
+```
+
+網頁端只有 `css/style.css` 多了一段 `html.desktop` 規則；`index.html` 與 `js/` 完全不知道自己在 Electron 裡。
+
 ## 換成你自己的圖
 
 角色就是 `index.html` 裡的一段 SVG，程式只靠 **圖層 id** 找東西。
@@ -195,6 +290,7 @@ tools/serve.ps1     零相依的本機靜態伺服器
 obs/SealVTuber.json 可匯入 OBS 的場景集合（Teams 全畫面 + 直播疊圖）
 obs/teams.html      給 OBS 本機檔案模式用的轉跳頁
 obs/overlay.html    同上，透明背景版
+desktop/            桌面浮動視窗（Electron），見上面「桌面浮動視窗」一節
 ```
 
 ## 運作原理
@@ -214,9 +310,13 @@ obs/overlay.html    同上，透明背景版
 OBS 顯示頁接收參數、OBS 虛擬攝影機進 Teams、在 OBS 裡縮放移動海豹。
 OBS 的瀏覽器來源確定不給攝影機權限，所以一定要用追蹤頁加顯示頁的方式。
 
+桌面浮動視窗（Electron）已驗證：透明置頂、拖曳、握把與 Ctrl + 滾輪縮放、右鍵選單、置頂與滑鼠穿透開關、
+失去焦點時仍維持 60 fps 繪製、位置大小還原、沿用 `start-server.bat` 的伺服器。
+攝影機追蹤走的是和網頁版完全相同的程式碼，但實測時攝影機被 Chrome 的追蹤頁佔用，
+在桌面版裡的真人追蹤還沒有實際跑過一次。
+
 接下來可以做：
 
-- 桌面浮動視窗：把網頁包成透明置頂的小程式（Tauri 或 Electron），海豹像桌寵一樣浮在任何軟體上面、可拖曳縮放
 - 換上正式繪圖
 - 眼珠跟著視線移動
 - 更多表情（皺眉、嘟嘴、挑眉）

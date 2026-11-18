@@ -7,3 +7,7 @@ desktop.ini
 # 本機工具設定
 .claude/
 .vscode/
+
+# 桌面浮動視窗（Electron）
+desktop/node_modules/
+desktop/dist/

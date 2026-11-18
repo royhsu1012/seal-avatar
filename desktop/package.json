@@ -1,0 +1,60 @@
+{
+  "name": "seal-vtuber-desktop",
+  "productName": "SealVTuber",
+  "version": "0.1.0",
+  "description": "海豹 VTuber 桌面浮動視窗：透明、置頂、可拖曳縮放的桌寵",
+  "main": "main.js",
+  "private": true,
+  "license": "MIT",
+  "author": "royhsu1012",
+  "homepage": "https://github.com/royhsu1012/seal-avatar",
+  "scripts": {
+    "start": "electron .",
+    "icons": "electron tools/make-icon.js",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "io.github.royhsu1012.seal-avatar",
+    "productName": "SealVTuber",
+    "artifactName": "${productName}-${version}-portable.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "web",
+        "filter": [
+          "index.html",
+          "css/**",
+          "js/**",
+          "LICENSE"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
+  }
+}
