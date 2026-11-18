@@ -38,15 +38,16 @@
 
 ### 方法一：本機伺服器（建議）
 
-Windows 內建 PowerShell 就能跑，不需要安裝任何東西：
+雙擊 `start-server.bat`。它用 Windows 內建的 PowerShell 跑一個小伺服器，不需要安裝任何東西。
+想用指令的話：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 ```
 
-然後用瀏覽器開 <http://localhost:8787/>，按「啟動攝影機」並允許權限。
+然後用瀏覽器開 <http://localhost:8788/>，按「啟動攝影機」並允許權限。
 
-有 Python 或 Node 的話，任何靜態伺服器都可以，例如 `python -m http.server 8787`。
+有 Python 或 Node 的話，任何靜態伺服器都可以，例如 `python -m http.server 8788`。
 
 ### 方法二：直接雙擊 index.html
 
@@ -75,22 +76,57 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | `preview=1` | 顯示攝影機縮圖 |
 | `diag=1` | 診斷模式：每秒把追蹤數值寫一行到 `tools\serve.ps1` 的終端機，方便調整靈敏度。只送到本機伺服器 |
 
-## 接進 OBS
+## 接進 OBS、直播與 Teams
 
-### 方式 A：視窗擷取 + 色度鍵（最穩）
+網頁本身沒辦法變成一顆攝影機，Teams、Zoom、Meet 這類軟體只認得攝影機裝置。
+免費開源的橋樑是 [OBS Studio](https://obsproject.com/)（GPL），它內建虛擬攝影機，本身也是直播軟體，
+所以一條管線同時解決直播和視訊會議：
 
-1. 用 Chrome / Edge 開啟頁面，背景選「綠幕」，按 H 隱藏面板
+```
+海豹網頁 → OBS（縮放、移動、換背景、合成） → 虛擬攝影機 → Teams / Zoom / Meet
+                                            └→ 直播或錄影
+```
+
+### 一次設定
+
+1. 安裝 OBS Studio：
+
+   ```powershell
+   winget install --id OBSProject.OBSStudio -e
+   ```
+
+2. 雙擊 `start-server.bat` 啟動本機伺服器（OBS 開著的期間要一直開著）。
+3. 匯入現成的場景集合：OBS 選單 → 場景集合 → 匯入 → 選 `obs\SealVTuber.json`，再從場景集合選單切換到 SealVTuber。
+   裡面有兩個場景：
+   - **Teams 海豹**：1920×1080，海豹置中加柔和背景，給視訊會議用
+   - **直播 疊圖**：透明背景的海豹縮小放在右下角，疊在一個深色佔位背景上。把佔位背景換成你的遊戲擷取或螢幕擷取就是直播畫面
+
+   匯入失敗的話手動加：來源 → 加號 → 瀏覽器，網址填 `http://localhost:8788/?bg=soft&ui=0&autostart=1`，寬 1920 高 1080。
+   疊圖版網址改成 `bg=transparent`，寬高都填 1080。
+
+4. 放進 OBS 後頁面會自動隱藏面板並啟動攝影機，第一次看到臉會自動校正，請先看著鏡頭兩秒。
+
+不想開伺服器的話，瀏覽器來源可以勾「本機檔案」，選 `obs\teams.html` 或 `obs\overlay.html`，
+這兩頁會自動帶參數轉跳到 `index.html`。
+
+### 縮放與移動
+
+在 OBS 預覽畫面裡直接拖曳海豹就能移動，拉角落的紅點就能縮放，按住 Alt 拖邊緣可以裁切。
+右鍵 → 變換 → 編輯變換可以輸入精確數字。每個場景可以放不同大小位置的海豹。
+
+### 接進 Teams
+
+1. OBS 右下角「控制項」→ 開始虛擬攝影機
+2. Teams → 設定 → 裝置 → 攝影機 → 選「OBS Virtual Camera」。第一次可能要重開 Teams 才看得到
+3. 之後開會時 Teams 的鏡頭就是 OBS 目前的場景，切場景就切畫面
+
+### 如果海豹在 OBS 裡不動
+
+OBS 的瀏覽器來源沒有權限提示視窗。如果狀態卡在「無法開啟攝影機」，表示你的 OBS 版本沒有放行攝影機，請改用視窗擷取：
+
+1. 用 Chrome / Edge 開啟頁面，背景選「綠幕」，按 H 隱藏面板，視窗不要最小化
 2. OBS 新增來源 → 視窗擷取，選那個瀏覽器視窗
 3. 對該來源加「色度鍵」濾鏡，顏色選綠色
-
-### 方式 B：瀏覽器來源（透明背景）
-
-1. 先用方法一啟動本機伺服器
-2. OBS 新增來源 → 瀏覽器，網址填 `http://localhost:8787/?bg=transparent&ui=0&autostart=1`
-3. 放進 OBS 時面板會自動隱藏
-
-注意：OBS 的瀏覽器來源能否取得攝影機權限依 OBS 版本而定，這部分尚未驗證。
-如果海豹不動，請改用方式 A。
 
 ## 換成你自己的圖
 
@@ -135,11 +171,15 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 ## 專案結構
 
 ```
-index.html        頁面、控制面板、海豹 SVG
-css/style.css     版面與背景模式
-js/rig.js         SealRig：參數 → SVG 變形與反應
-js/app.js         攝影機、MediaPipe、參數計算、平滑、主迴圈
-tools/serve.ps1   零相依的本機靜態伺服器
+index.html          頁面、控制面板、海豹 SVG
+css/style.css       版面與背景模式
+js/rig.js           SealRig：參數 → SVG 變形與反應
+js/app.js           攝影機、MediaPipe、參數計算、平滑、主迴圈
+start-server.bat    雙擊啟動本機伺服器
+tools/serve.ps1     零相依的本機靜態伺服器
+obs/SealVTuber.json 可匯入 OBS 的場景集合（Teams 全畫面 + 直播疊圖）
+obs/teams.html      給 OBS 本機檔案模式用的轉跳頁
+obs/overlay.html    同上，透明背景版
 ```
 
 ## 運作原理
@@ -155,11 +195,12 @@ tools/serve.ps1   零相依的本機靜態伺服器
 
 ## 目前狀態與下一步
 
-已驗證：造型渲染、五種反應、極限角度、眨眼與說話、模型從 CDN 載入。
-尚未驗證：真人攝影機追蹤的方向與靈敏度（需要有臉的環境），以及 OBS 瀏覽器來源的攝影機權限。
+已驗證：造型渲染、五種反應、極限角度、眨眼與說話、模型從 CDN 載入、真人攝影機追蹤方向正確且 50～60 fps。
+尚未驗證：OBS 瀏覽器來源的攝影機權限、OBS 虛擬攝影機在 Teams 裡的顯示。
 
 接下來可以做：
 
+- 桌面浮動視窗：把網頁包成透明置頂的小程式（Tauri 或 Electron），海豹像桌寵一樣浮在任何軟體上面、可拖曳縮放
 - 換上正式繪圖
 - 眼珠跟著視線移動
 - 更多表情（皺眉、嘟嘴、挑眉）

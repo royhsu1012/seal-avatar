@@ -4,14 +4,14 @@
 .DESCRIPTION
   不需要安裝 Python 或 Node。在專案根目錄執行：
     powershell -ExecutionPolicy Bypass -File tools\serve.ps1
-  然後用瀏覽器開 http://localhost:8787/ 。按 Ctrl+C 停止。
+  然後用瀏覽器開 http://localhost:8788/ 。按 Ctrl+C 停止。
 .PARAMETER Port
-  監聽的連接埠，預設 8787。
+  監聽的連接埠，預設 8788。
 .PARAMETER Root
   要提供的資料夾，預設是本腳本所在資料夾的上一層（專案根目錄）。
 #>
 param(
-  [int]$Port = 8787,
+  [int]$Port = 8788,
   [string]$Root = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
 )
 
