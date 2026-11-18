@@ -472,6 +472,7 @@
     const n = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
     const q = new URLSearchParams({
       mode: MODE,
+      hid: document.hidden ? '1' : '0',
       st: state,
       fps: String(fps),
       yaw: n(current.yaw),
@@ -614,10 +615,20 @@
   }
 
   if (MODE === 'tracker') {
-    // 追蹤頁被切到背景或被其他視窗完全蓋住時 requestAnimationFrame 會停，改用計時器維持追蹤
-    setInterval(() => {
-      if (document.hidden) tick(performance.now());
-    }, 33);
+    // 追蹤頁被切到背景或被其他視窗完全蓋住時，requestAnimationFrame 會停、主執行緒的計時器會被 Chrome
+    // 降到每秒一次。Web Worker 的計時器不受這個限制，所以用 worker 每 33 毫秒敲一次主執行緒來驅動 tick。
+    try {
+      const src = 'setInterval(function () { postMessage(0); }, 33);';
+      const ticker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      ticker.onmessage = () => {
+        if (document.hidden) tick(performance.now());
+      };
+    } catch (e) {
+      console.warn('無法建立背景計時 worker，改用一般計時器', e);
+      setInterval(() => {
+        if (document.hidden) tick(performance.now());
+      }, 33);
+    }
   }
 
   requestAnimationFrame(loop);
