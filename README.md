@@ -74,6 +74,8 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | `demo=1` | 直接進入示範模式 |
 | `mirror=0` | 關閉鏡像 |
 | `preview=1` | 顯示攝影機縮圖 |
+| `mode=tracker` | 追蹤頁：開攝影機追蹤，把參數送到本機伺服器 `/params` |
+| `mode=viewer` | 顯示頁：不開攝影機，從 `/params` 取參數畫海豹。給 OBS 用 |
 | `diag=1` | 診斷模式：每秒把追蹤數值寫一行到 `tools\serve.ps1` 的終端機，方便調整靈敏度。只送到本機伺服器 |
 
 ## 接進 OBS、直播與 Teams
@@ -87,6 +89,18 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
                                             └→ 直播或錄影
 ```
 
+### 追蹤頁與顯示頁
+
+OBS 內建的瀏覽器**不給攝影機權限**（實測 OBS 33 會直接拒絕），所以在 OBS 裡不能用同一頁又追蹤又顯示。
+做法是拆成兩頁，中間靠本機伺服器中繼參數：
+
+```
+Chrome / Edge 的追蹤頁 (?mode=tracker) ──攝影機追蹤──▶ 本機伺服器 /params ──▶ OBS 的顯示頁 (?mode=viewer)
+```
+
+- **追蹤頁**：開著就好，可以縮小放角落，不要最小化。它會把頭部姿勢、眨眼、張嘴、笑容送到伺服器
+- **顯示頁**：OBS 裡的瀏覽器來源，只畫海豹不碰攝影機，可以同時放好幾個（Teams 場景一個、直播疊圖一個）
+
 ### 一次設定
 
 1. 安裝 OBS Studio：
@@ -96,18 +110,21 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
    ```
 
 2. 雙擊 `start-server.bat` 啟動本機伺服器（OBS 開著的期間要一直開著）。
-3. 匯入現成的場景集合：OBS 選單 → 場景集合 → 匯入 → 選 `obs\SealVTuber.json`，再從場景集合選單切換到 SealVTuber。
+3. 用 Chrome / Edge 開追蹤頁並允許攝影機，之後整場都讓它開著：
+
+   ```
+   http://localhost:8788/?mode=tracker&preview=1
+   ```
+
+4. 匯入現成的場景集合：OBS 上方選單列 → 場景集合 → 匯入 → 選 `obs\SealVTuber.json`，再從同一個選單切換到 SealVTuber。
    裡面有兩個場景：
    - **Teams 海豹**：1920×1080，海豹置中加柔和背景，給視訊會議用
    - **直播 疊圖**：透明背景的海豹縮小放在右下角，疊在一個深色佔位背景上。把佔位背景換成你的遊戲擷取或螢幕擷取就是直播畫面
 
-   匯入失敗的話手動加：來源 → 加號 → 瀏覽器，網址填 `http://localhost:8788/?bg=soft&ui=0&autostart=1`，寬 1920 高 1080。
+   匯入失敗的話手動加：來源 → 加號 → 瀏覽器，網址填 `http://localhost:8788/?mode=viewer&bg=soft&ui=0`，寬 1920 高 1080。
    疊圖版網址改成 `bg=transparent`，寬高都填 1080。
 
-4. 放進 OBS 後頁面會自動隱藏面板並啟動攝影機，第一次看到臉會自動校正，請先看著鏡頭兩秒。
-
-不想開伺服器的話，瀏覽器來源可以勾「本機檔案」，選 `obs\teams.html` 或 `obs\overlay.html`，
-這兩頁會自動帶參數轉跳到 `index.html`。
+瀏覽器來源也可以勾「本機檔案」選 `obs\teams.html` 或 `obs\overlay.html`，它們會轉跳到對應的顯示頁網址。
 
 ### 縮放與移動
 
@@ -122,11 +139,9 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 
 ### 如果海豹在 OBS 裡不動
 
-OBS 的瀏覽器來源沒有權限提示視窗。如果狀態卡在「無法開啟攝影機」，表示你的 OBS 版本沒有放行攝影機，請改用視窗擷取：
-
-1. 用 Chrome / Edge 開啟頁面，背景選「綠幕」，按 H 隱藏面板，視窗不要最小化
-2. OBS 新增來源 → 視窗擷取，選那個瀏覽器視窗
-3. 對該來源加「色度鍵」濾鏡，顏色選綠色
+- 先確認追蹤頁還開著、伺服器還在跑。顯示頁 3 秒收不到資料海豹就會睡著
+- 追蹤頁被最小化或被其他視窗整個蓋住時，Chrome 會降低它的更新頻率。把它縮小放在螢幕角落露出來即可
+- 完全不想用兩頁的話，也可以用視窗擷取：Chrome 開 `http://localhost:8788/?bg=green&ui=0&autostart=1`，OBS 新增「視窗擷取」選那個視窗，再加「色度鍵」濾鏡選綠色
 
 ## 換成你自己的圖
 

@@ -1,7 +1,8 @@
 <!doctype html>
-<!-- 給 OBS「瀏覽器來源 → 本機檔案」用：本機檔案模式不能帶網址參數，所以用這一頁轉跳 -->
+<!-- 給 OBS「瀏覽器來源 → 本機檔案」用：本機檔案模式不能帶網址參數，所以用這一頁轉跳。
+     顯示頁模式不開攝影機，參數來自本機伺服器 http://localhost:8788/params（追蹤頁要另外開著） -->
 <meta charset="utf-8" />
 <title>Seal VTuber (Teams)</title>
 <script>
-  location.replace('../index.html?bg=soft&ui=0&autostart=1');
+  location.replace('http://localhost:8788/?mode=viewer&bg=soft&ui=0');
 </script>

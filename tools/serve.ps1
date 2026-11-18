@@ -34,6 +34,9 @@ $mime = @{
   '.wasm' = 'application/wasm'
 }
 
+# 追蹤頁（?mode=tracker）POST 上來的最新參數，顯示頁（?mode=viewer）GET 取回
+$script:latestParams = ''
+
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
@@ -51,6 +54,24 @@ try {
     try {
       $rel = [Uri]::UnescapeDataString($req.Url.AbsolutePath).TrimStart('/')
       if ($rel -eq '') { $rel = 'index.html' }
+      if ($rel -eq 'params') {
+        # 追蹤頁與顯示頁之間的參數中繼，只在本機；不寫 log 以免洗版
+        $res.Headers.Add('Cache-Control', 'no-store')
+        if ($req.HttpMethod -eq 'POST') {
+          $reader = New-Object IO.StreamReader($req.InputStream, [Text.Encoding]::UTF8)
+          $script:latestParams = $reader.ReadToEnd()
+          $reader.Close()
+          $res.StatusCode = 204
+          continue
+        }
+        $res.ContentType = 'application/json; charset=utf-8'
+        $payload = '{}'
+        if ($script:latestParams) { $payload = $script:latestParams }
+        $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
+        $res.ContentLength64 = $bytes.Length
+        $res.OutputStream.Write($bytes, 0, $bytes.Length)
+        continue
+      }
       if ($rel -eq 'diag') {
         # 診斷模式（網頁加 ?diag=1）：把追蹤數值印出來，方便除錯
         $res.StatusCode = 204

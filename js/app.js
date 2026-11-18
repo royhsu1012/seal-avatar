@@ -9,6 +9,13 @@
 (function () {
   'use strict';
 
+  // 執行模式（網址 ?mode=）：
+  //   standalone（預設）：同一頁開攝影機、追蹤、畫海豹
+  //   tracker：開攝影機追蹤，並把參數 POST 到本機伺服器 /params
+  //   viewer：不開攝影機，從 /params 取參數畫海豹。給 OBS 瀏覽器來源用，因為 OBS 內建瀏覽器不給攝影機權限
+  const urlParams = new URLSearchParams(location.search);
+  const MODE = ['tracker', 'viewer'].includes(urlParams.get('mode')) ? urlParams.get('mode') : 'standalone';
+
   const TUNING = {
     mediapipe: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14',
     model:
@@ -94,6 +101,8 @@
   let lastRaw = null; // 最近一次未校正、未鏡像的原始參數（診斷用）
   let diag = false;
   let lastDiagAt = 0;
+  let sendInFlight = false; // tracker：避免同時有多個 POST 在路上
+  let lastRemoteAt = 0; // viewer：最近一次收到新鮮資料的時間
 
   let lastSeenAt = performance.now();
   let lastVideoTime = -1;
@@ -293,8 +302,9 @@
       video.srcObject = stream;
       await video.play();
     } catch (e) {
-      console.error(e);
+      console.error('camera error', e.name, e.message);
       setStatus('無法開啟攝影機：' + (e.name || e.message), 'error');
+      if (diag) fetch('/diag?err=' + encodeURIComponent('camera ' + e.name + ' ' + e.message)).catch(() => {});
       ui.btnCam.disabled = false;
       return;
     }
@@ -409,6 +419,7 @@
         target = { ...target, present: false };
         if (statusKey !== 'noface') setStatus('沒有偵測到臉', null, 'noface');
       }
+      if (MODE === 'tracker') sendParams();
       fpsCount++;
       if (now - fpsAt >= 1000) {
         fps = fpsCount;
@@ -436,8 +447,15 @@
     }
     current.present = target.present;
 
-    // 只有在追蹤或示範中才計算「多久沒看到臉」，待命時維持平常狀態
-    const absentMs = tracking || demo ? now - lastSeenAt : 0;
+    if (MODE === 'viewer') {
+      const fresh = Date.now() - lastRemoteAt < 1500;
+      if (fresh && statusKey !== 'remote') setStatus('接收追蹤資料中', 'live', 'remote');
+      if (!fresh && statusKey !== 'remote-wait') setStatus('等待追蹤頁的資料…', null, 'remote-wait');
+    }
+
+    // 只有在追蹤、示範或接收中才計算「多久沒看到臉」，待命時維持平常狀態
+    const active = tracking || demo || MODE === 'viewer';
+    const absentMs = active ? now - lastSeenAt : 0;
     const state = SealRig.classify(current, absentMs, TUNING.sleepAfterMs);
     if (!paused) {
       rig.apply(current, dt, state);
@@ -453,6 +471,7 @@
   function sendDiag(state) {
     const n = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
     const q = new URLSearchParams({
+      mode: MODE,
       st: state,
       fps: String(fps),
       yaw: n(current.yaw),
@@ -478,6 +497,43 @@
       q.set('baseR', n(blinkBase.right));
     }
     fetch('/diag?' + q.toString(), { cache: 'no-store', keepalive: true }).catch(() => {});
+  }
+
+  // ---------- tracker / viewer 之間的參數中繼（經由 serve.ps1 的 /params） ----------
+  function sendParams() {
+    if (sendInFlight) return;
+    sendInFlight = true;
+    const body = JSON.stringify({ t: Date.now(), ...target });
+    fetch('/params', { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true })
+      .catch(() => {})
+      .finally(() => {
+        sendInFlight = false;
+      });
+  }
+
+  async function pollParams() {
+    try {
+      const r = await fetch('/params', { cache: 'no-store' });
+      const d = await r.json();
+      if (d && typeof d.t === 'number') {
+        const fresh = Date.now() - d.t < 1500; // 追蹤頁停了就當作沒看到臉
+        target = {
+          yaw: d.yaw || 0,
+          pitch: d.pitch || 0,
+          roll: d.roll || 0,
+          blinkL: d.blinkL || 0,
+          blinkR: d.blinkR || 0,
+          jaw: d.jaw || 0,
+          smile: d.smile || 0,
+          present: !!d.present && fresh,
+        };
+        if (fresh) lastRemoteAt = Date.now();
+        if (target.present) lastSeenAt = performance.now();
+      }
+    } catch (e) {
+      // 伺服器沒開或還沒有資料，下一輪再試
+    }
+    setTimeout(pollParams, 33);
   }
 
   // 除錯介面：在瀏覽器主控台可用 sealVTuber.TUNING 即時調參數，
@@ -537,7 +593,7 @@
   });
 
   // ---------- 網址參數 ----------
-  const params = new URLSearchParams(location.search);
+  const params = urlParams;
   if (params.has('bg')) setBackground(params.get('bg'));
   if (params.get('ui') === '0') body.classList.add('ui-hidden');
   if (params.has('mirror')) setMirror(params.get('mirror') !== '0');
@@ -545,8 +601,24 @@
   diag = params.get('diag') === '1';
   if (window.obsstudio) body.classList.add('ui-hidden'); // 放進 OBS 瀏覽器來源時自動隱藏面板
   setStatus('待命');
-  if (params.get('demo') === '1') toggleDemo();
-  else if (params.get('autostart') === '1' || window.obsstudio) startCamera();
+
+  if (MODE === 'viewer') {
+    ui.btnCam.disabled = true;
+    ui.btnCam.textContent = '顯示模式（由追蹤頁驅動）';
+    ui.btnCal.disabled = true;
+    pollParams();
+  } else if (params.get('demo') === '1') {
+    toggleDemo();
+  } else if (params.get('autostart') === '1' || MODE === 'tracker' || window.obsstudio) {
+    startCamera();
+  }
+
+  if (MODE === 'tracker') {
+    // 追蹤頁被切到背景或被其他視窗完全蓋住時 requestAnimationFrame 會停，改用計時器維持追蹤
+    setInterval(() => {
+      if (document.hidden) tick(performance.now());
+    }, 33);
+  }
 
   requestAnimationFrame(loop);
 })();
