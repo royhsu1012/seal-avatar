@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seal VTuber MVP</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-soft mirror">
+  <main id="stage">
+    <!--
+      海豹佔位造型（頭 + 脖子）。
+      之後要換成正式繪圖時，保留下面這些 id 即可，程式只靠 id 找圖層：
+        avatar / head / ears / features
+        eye-left-open / eye-left-happy / eye-right-open / eye-right-happy
+        mouth-closed / mouth-open / blush / whiskers-left / whiskers-right
+        zzz / exclaim
+      座標系為 600 x 600，頭部中心 (300, 300)，眼睛中心 (232, 282) 與 (368, 282)，嘴巴上緣 (300, 376)。
+      改了這些位置的話請同步修改 js/rig.js 開頭的常數。
+    -->
+    <svg id="seal" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
+      <defs>
+        <radialGradient id="g-head" cx="45%" cy="35%" r="75%">
+          <stop offset="0" stop-color="#D8E1E9" />
+          <stop offset="1" stop-color="#B3C1CE" />
+        </radialGradient>
+        <linearGradient id="g-neck" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#B3C1CE" />
+          <stop offset="1" stop-color="#9DAEBC" />
+        </linearGradient>
+      </defs>
+
+      <g id="avatar">
+        <!-- 脖子 -->
+        <g id="neck">
+          <path d="M 212 418 Q 300 472 388 418 Q 446 520 468 640 L 132 640 Q 154 520 212 418 Z" fill="url(#g-neck)" />
+          <ellipse cx="300" cy="575" rx="92" ry="80" fill="#EDF2F6" opacity="0.9" />
+        </g>
+
+        <!-- 頭 -->
+        <g id="head">
+          <g id="head-base">
+            <g id="ears">
+              <circle cx="120" cy="312" r="17" fill="#9DAEBC" />
+              <circle cx="480" cy="312" r="17" fill="#9DAEBC" />
+            </g>
+            <ellipse cx="300" cy="300" rx="190" ry="172" fill="url(#g-head)" />
+          </g>
+
+          <!-- 五官（會做視差位移） -->
+          <g id="features">
+            <ellipse id="snout" cx="300" cy="364" rx="112" ry="78" fill="#EEF3F7" />
+
+            <g id="blush" opacity="0.3">
+              <ellipse cx="176" cy="352" rx="28" ry="15" fill="#F5A3B5" />
+              <ellipse cx="424" cy="352" rx="28" ry="15" fill="#F5A3B5" />
+            </g>
+
+            <g id="whiskers" stroke="#7D8C9A" stroke-width="3" stroke-linecap="round" fill="none">
+              <g id="whiskers-left">
+                <line x1="245" y1="348" x2="158" y2="330" />
+                <line x1="245" y1="360" x2="150" y2="360" />
+                <line x1="245" y1="372" x2="158" y2="392" />
+              </g>
+              <g id="whiskers-right">
+                <line x1="355" y1="348" x2="442" y2="330" />
+                <line x1="355" y1="360" x2="450" y2="360" />
+                <line x1="355" y1="372" x2="442" y2="392" />
+              </g>
+            </g>
+
+            <g id="eye-left">
+              <g id="eye-left-open">
+                <circle cx="232" cy="282" r="27" fill="#2A2E35" />
+                <circle cx="241" cy="272" r="9" fill="#FFFFFF" />
+                <circle cx="224" cy="292" r="4" fill="#FFFFFF" opacity="0.8" />
+              </g>
+              <path id="eye-left-happy" d="M 203 292 Q 232 256 261 292" stroke="#2A2E35" stroke-width="10" stroke-linecap="round" fill="none" opacity="0" />
+            </g>
+            <g id="eye-right">
+              <g id="eye-right-open">
+                <circle cx="368" cy="282" r="27" fill="#2A2E35" />
+                <circle cx="377" cy="272" r="9" fill="#FFFFFF" />
+                <circle cx="360" cy="292" r="4" fill="#FFFFFF" opacity="0.8" />
+              </g>
+              <path id="eye-right-happy" d="M 339 292 Q 368 256 397 292" stroke="#2A2E35" stroke-width="10" stroke-linecap="round" fill="none" opacity="0" />
+            </g>
+
+            <path id="nose" d="M 281 330 Q 300 321 319 330 Q 313 351 300 357 Q 287 351 281 330 Z" fill="#2A2E35" />
+
+            <g id="mouth">
+              <path id="mouth-closed" d="M 268 374 Q 284 392 300 376 Q 316 392 332 374" stroke="#2A2E35" stroke-width="6" stroke-linecap="round" fill="none" />
+              <g id="mouth-open" opacity="0">
+                <ellipse cx="300" cy="396" rx="22" ry="20" fill="#5B2A3A" />
+                <ellipse cx="300" cy="406" rx="12" ry="8" fill="#F08CA0" />
+              </g>
+            </g>
+          </g>
+        </g>
+
+        <!-- 反應符號 -->
+        <g id="fx" font-family="system-ui, 'Noto Sans TC', sans-serif" font-weight="700">
+          <text id="zzz" x="436" y="150" font-size="42" fill="#5A6B7A" opacity="0">z z z</text>
+          <text id="exclaim" x="452" y="172" font-size="72" fill="#F0735A" opacity="0">!</text>
+        </g>
+      </g>
+    </svg>
+  </main>
+
+  <aside id="panel" class="panel">
+    <header class="panel__head">
+      <strong>海豹 VTuber MVP</strong>
+      <span id="status" class="status">準備中…</span>
+    </header>
+    <section class="panel__row">
+      <button id="btn-camera" type="button">啟動攝影機</button>
+      <button id="btn-calibrate" type="button" disabled title="把目前的頭部姿勢當成正面">校正正面 (C)</button>
+      <button id="btn-demo" type="button">示範模式 (D)</button>
+    </section>
+    <section class="panel__row">
+      <label><input id="chk-mirror" type="checkbox" checked /> 鏡像 (M)</label>
+      <label><input id="chk-preview" type="checkbox" /> 顯示攝影機畫面 (V)</label>
+    </section>
+    <section class="panel__row">
+      <span class="label">背景</span>
+      <button type="button" data-bg="soft" class="is-active">柔和</button>
+      <button type="button" data-bg="green">綠幕</button>
+      <button type="button" data-bg="blue">藍幕</button>
+      <button type="button" data-bg="transparent">透明</button>
+    </section>
+    <section id="debug" class="debug">
+      <div>狀態 <b id="dbg-state">—</b> <span id="dbg-fps-wrap">fps <b id="dbg-fps">0</b></span></div>
+      <div>yaw <b id="dbg-yaw">0</b> pitch <b id="dbg-pitch">0</b> roll <b id="dbg-roll">0</b></div>
+      <div>blink <b id="dbg-blink">0</b> jaw <b id="dbg-jaw">0</b> smile <b id="dbg-smile">0</b></div>
+    </section>
+    <footer class="panel__foot">
+      按 H 隱藏/顯示面板。網址參數：<code>?ui=0</code> 隱藏面板、<code>?bg=green</code> 綠幕、<code>?autostart=1</code> 自動開攝影機、<code>?demo=1</code> 示範。
+    </footer>
+  </aside>
+
+  <video id="cam" class="cam" playsinline muted autoplay></video>
+
+  <script src="js/rig.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

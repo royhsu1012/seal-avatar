@@ -1,0 +1,9 @@
+# 作業系統與編輯器
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+
+# 本機工具設定
+.claude/
+.vscode/

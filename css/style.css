@@ -1,0 +1,136 @@
+:root {
+  color-scheme: light;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --ink: #2a2e35;
+  --muted: #5a6b7a;
+  --line: #d9e2ea;
+  --accent: #4f8fd6;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+/* 背景模式：柔和 / 綠幕 / 藍幕 / 透明（OBS 瀏覽器來源用） */
+body.bg-soft { background: radial-gradient(circle at 50% 30%, #eef6fb 0%, #d3e5f2 60%, #bfd6ea 100%); }
+body.bg-green { background: #00ff00; }
+body.bg-blue { background: #0000ff; }
+body.bg-transparent { background: transparent; }
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+#seal {
+  width: min(100vw, 100vh);
+  height: min(100vw, 100vh);
+  display: block;
+}
+
+/* 控制面板 */
+.panel {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  backdrop-filter: blur(6px);
+}
+
+body.ui-hidden .panel,
+body.ui-hidden .cam { display: none; }
+
+.panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.status { color: var(--muted); font-size: 12px; text-align: right; }
+.status.is-error { color: #c23b3b; }
+.status.is-live { color: #1f8a4c; }
+
+.panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.label { color: var(--muted); margin-right: 2px; }
+
+button {
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #c8d3dd;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button[disabled] { opacity: 0.5; cursor: default; }
+button.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.debug {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.debug b {
+  color: var(--ink);
+  font-weight: 600;
+  display: inline-block;
+  min-width: 4.5ch;
+}
+#dbg-fps-wrap { float: right; }
+
+.panel__foot {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #7d8c9a;
+  line-height: 1.6;
+}
+
+code {
+  background: #eef3f7;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* 攝影機縮圖（預設隱藏） */
+.cam {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: 200px;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  display: none;
+  background: #000;
+}
+body.show-cam .cam { display: block; }
+body.mirror .cam { transform: scaleX(-1); }

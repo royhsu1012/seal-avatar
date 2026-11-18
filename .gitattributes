@@ -1,0 +1,12 @@
+# 文字檔一律以 LF 存入版本庫，避免跨平台換行符號差異
+* text=auto eol=lf
+
+# 二進位檔不做任何轉換
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.task binary
+*.wasm binary
