@@ -24,7 +24,6 @@
 
   // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal.png 量出來），換圖時請同步修改
   const BASE_CX = 512, BASE_BOTTOM = 964; // 呼吸與彈跳的支點：身體底部中央
-  const HEAD_PIVOT = { x: 512, y: 940 };  // 傾斜與下壓的支點：身體底部中央，底部才不會跑位
   const EYE_L = { x: 403, y: 352 };
   const EYE_R = { x: 637, y: 352 };
   const MOUTH_TOP = { x: 515, y: 452 };
@@ -98,12 +97,9 @@
       const bounce = happy * 0.02 * Math.max(0, Math.sin((t * Math.PI * 2) / 0.5));
       this.el.avatar.setAttribute('transform', scaleAround(BASE_CX, BASE_BOTTOM, 1 + bounce * 0.4, breath + bounce));
 
-      // 整隻：以身體底部為支點微傾（轉頭 + 側傾），點頭時略為下壓，轉頭時略為變窄；底部位置保持不動
-      this.el.head.setAttribute(
-        'transform',
-        `rotate(${fmt(yaw * 6 + roll * 0.5)} ${HEAD_PIVOT.x} ${HEAD_PIVOT.y}) ` +
-          scaleAround(HEAD_PIVOT.x, HEAD_PIVOT.y, 1 - Math.abs(yaw) * 0.05, 1 - Math.max(0, pitch) * 0.04)
-      );
+      // 身體完全不動：整張圖不旋轉也不位移，轉頭與點頭只靠眼珠移動表現（roll 不使用）
+      void roll;
+      this.el.head.setAttribute('transform', '');
 
       // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
       const eyeScale = 1 + surprised * 0.18;
@@ -111,7 +107,7 @@
       const blinkR = clamp(Math.max(p.blinkR, sleep), 0, 1);
       const openL = Math.max(0.05, 1 - blinkL);
       const openR = Math.max(0.05, 1 - blinkR);
-      const look = `translate(${fmt(yaw * 5)} ${fmt(pitch * 4)}) `;
+      const look = `translate(${fmt(yaw * 14)} ${fmt(pitch * 10)}) `;
       this.el.eyeLOpen.setAttribute('transform', look + scaleAround(EYE_L.x, EYE_L.y, eyeScale, openL * eyeScale));
       this.el.eyeROpen.setAttribute('transform', look + scaleAround(EYE_R.x, EYE_R.y, eyeScale, openR * eyeScale));
       const happyEyes = happy * (1 - sleep);
