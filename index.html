@@ -27,9 +27,9 @@
         <filter id="soft-1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.8" /></filter>
         <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留一個「脖子」形狀（肩膀往上到 y≈482 後，
              沿扁橢圓往內收到頭後面）。頭轉動時露出來的是脖子的弧線與白毛，不會出現第二層頭的輪廓 -->
-        <!-- 前鰭圖只留腳掌與鰭根：y=850 以下全顯示，往上到 y=780 漸漸淡出（鰭圖上半段的「手臂」疊在身體上會穿幫）。
-             左右各一個遮罩，順便裁掉鰭圖中間 x≈508–520 的分隔線 -->
-        <linearGradient id="flipper-fade" gradientUnits="userSpaceOnUse" x1="0" y1="780" x2="0" y2="850">
+        <!-- 前鰭圖只留腳掌與鰭根：y=875 以下全顯示，往上到 y=790 慢慢淡出，鰭根的描邊與陰影才不會太突兀
+             （鰭圖上半段的「手臂」疊在身體上會穿幫）。左右各一個遮罩，順便裁掉鰭圖中間 x≈508–520 的分隔線 -->
+        <linearGradient id="flipper-fade" gradientUnits="userSpaceOnUse" x1="0" y1="790" x2="0" y2="875">
           <stop offset="0" stop-color="#fff" stop-opacity="0" />
           <stop offset="1" stop-color="#fff" stop-opacity="1" />
         </linearGradient>
