@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>綠底去背</title>
+<!--
+  把純綠底的角色圖去背成透明 PNG。用法（伺服器開在 8788 時）：
+    chrome --headless=new --default-background-color=00000000 --window-size=1024,1024
+           --screenshot=out.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/seal.webp"
+  參數：src 圖片路徑；lo / hi 綠色程度的透明門檻（預設 8 / 235），邊緣有綠邊就把 hi 調低。
+  演算法：greenness = G - max(R, B)；alpha 由 greenness 線性決定；半透明像素再把混進去的綠色扣掉（despill）。
+-->
+<style>html, body { margin: 0; background: transparent; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1024" height="1024"></canvas>
+<script>
+  const q = new URLSearchParams(location.search);
+  const src = q.get('src') || '../art/src/seal.webp';
+  const lo = +(q.get('lo') || 40);
+  const hi = +(q.get('hi') || 190);
+  const cut = +(q.get('cut') || 0.1); // alpha 低於這個值就視為全透明，吃掉壓縮雜訊
+  const img = new Image();
+  img.onload = () => {
+    const c = document.getElementById('c');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height);
+    const p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const r = p[i], g = p[i + 1], b = p[i + 2];
+      const greenness = g - Math.max(r, b);
+      let a = 1 - Math.min(1, Math.max(0, (greenness - lo) / (hi - lo)));
+      if (a < cut) a = 0;
+      if (a > 0 && a < 1) {
+        const k = 1 - a;
+        let fr = Math.min(255, r / a);
+        let fg = Math.min(255, Math.max(0, (g - k * 255) / a));
+        let fb = Math.min(255, b / a);
+        // 越透明的邊緣像素越不可信，往描邊的深色靠，避免放大雜訊變成粉紅邊
+        const w = a < 0.7 ? (0.7 - a) / 0.7 : 0;
+        fr = fr * (1 - w) + 90 * w;
+        fg = fg * (1 - w) + 84 * w;
+        fb = fb * (1 - w) + 80 * w;
+        p[i] = fr; p[i + 1] = fg; p[i + 2] = fb;
+      }
+      // 溢色抑制：白毛被綠底染到的淡綠色調，把綠壓到不超過紅藍
+      if (a > 0) {
+        const cap = Math.max(p[i], p[i + 2]) + 2;
+        if (p[i + 1] > cap) p[i + 1] = cap;
+      }
+      p[i + 3] = Math.round(a * 255);
+    }
+    ctx.putImageData(d, 0, 0);
+    document.title = 'done';
+  };
+  img.src = src;
+</script>
+</body>
+</html>

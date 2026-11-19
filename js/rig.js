@@ -1,4 +1,11 @@
-/* rig.js — 把追蹤參數套用到 SVG 海豹上。
+/* rig.js — 把追蹤參數套用到海豹上。
+ *
+ * 角色是一張去背的 PNG 底圖（art/seal.png，1024 x 1024）加上疊在臉上的向量圖層：
+ *   - 眼睛：先用毛色的小色塊蓋住底圖畫好的眼睛，再用向量畫一對一樣的眼睛，這樣才能眨眼、看方向、換笑眼
+ *   - 嘴巴：張嘴時疊一個嘴型在吻部上；閉嘴就是底圖原本的微笑
+ *   - 腮紅：底圖本來就有，開心時再疊一層加深
+ *   - zzz / !：反應符號
+ * 頭轉與點頭用整張圖的位移、傾斜與些微的左右壓扁來模擬，疊圖層跟著整張圖一起動才不會對不準。
  *
  * 輸入參數 p：
  *   yaw     -1..1   左右轉頭（正值 = 朝畫面右邊）
@@ -15,14 +22,14 @@
 (function (global) {
   'use strict';
 
-  // 與 index.html 裡的 SVG 座標對應，改圖時請同步修改
-  const HEAD_CX = 300, HEAD_CY = 300, BASE_Y = 600;
-  const EYE_L = { x: 232, y: 282 };
-  const EYE_R = { x: 368, y: 282 };
-  const MOUTH_TOP = { x: 300, y: 376 };
-  const WHISKER_L = { x: 245, y: 360 };
-  const WHISKER_R = { x: 355, y: 360 };
-  const EXCLAIM = { x: 470, y: 150 };
+  // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal.png 量出來），換圖時請同步修改
+  const BASE_CX = 512, BASE_BOTTOM = 964; // 呼吸與彈跳的支點：身體底部中央
+  const HEAD_PIVOT = { x: 512, y: 700 };  // 側傾的支點，偏下才像整隻在搖
+  const HEAD_CENTER = { x: 512, y: 560 };
+  const EYE_L = { x: 403, y: 352 };
+  const EYE_R = { x: 637, y: 352 };
+  const MOUTH_TOP = { x: 515, y: 452 };
+  const EXCLAIM = { x: 800, y: 250 };
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -44,17 +51,14 @@
       this.el = {
         avatar: $('avatar'),
         head: $('head'),
-        ears: $('ears'),
-        features: $('features'),
         eyeLOpen: $('eye-left-open'),
         eyeROpen: $('eye-right-open'),
+        eyeLClosed: $('eye-left-closed'),
+        eyeRClosed: $('eye-right-closed'),
         eyeLHappy: $('eye-left-happy'),
         eyeRHappy: $('eye-right-happy'),
-        mouthClosed: $('mouth-closed'),
         mouthOpen: $('mouth-open'),
         blush: $('blush'),
-        whiskersL: $('whiskers-left'),
-        whiskersR: $('whiskers-right'),
         zzz: $('zzz'),
         exclaim: $('exclaim'),
       };
@@ -87,59 +91,53 @@
 
       // 睡著時頭垂下、側傾
       const yaw = p.yaw * (1 - sleep);
-      const pitch = lerp(p.pitch, 0.55, sleep);
-      const roll = lerp(p.roll, 9, sleep);
+      const pitch = lerp(p.pitch, 0.5, sleep);
+      const roll = lerp(p.roll, 8, sleep);
 
-      // 呼吸起伏 + 開心時的小彈跳（以脖子底部為支點）
-      const breath = 1 + 0.012 * Math.sin((t * Math.PI * 2) / 3.6);
-      const bounce = happy * 0.025 * Math.max(0, Math.sin((t * Math.PI * 2) / 0.5));
-      this.el.avatar.setAttribute('transform', scaleAround(HEAD_CX, BASE_Y, 1 + bounce * 0.4, breath + bounce));
+      // 呼吸起伏 + 開心時的小彈跳（以身體底部為支點）
+      const breath = 1 + 0.01 * Math.sin((t * Math.PI * 2) / 3.6);
+      const bounce = happy * 0.02 * Math.max(0, Math.sin((t * Math.PI * 2) / 0.5));
+      this.el.avatar.setAttribute('transform', scaleAround(BASE_CX, BASE_BOTTOM, 1 + bounce * 0.4, breath + bounce));
 
-      // 頭：位移 + 側傾 + 轉頭時略為變窄，做出假 3D 感
-      const hx = yaw * 32;
-      const hy = pitch * 26;
+      // 整隻：位移 + 側傾 + 轉頭時略為變窄
+      const hx = yaw * 26;
+      const hy = pitch * 16;
       this.el.head.setAttribute(
         'transform',
-        `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll)} ${HEAD_CX} ${HEAD_CY}) ` +
-          scaleAround(HEAD_CX, HEAD_CY, 1 - Math.abs(yaw) * 0.06, 1)
+        `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll * 0.7)} ${HEAD_PIVOT.x} ${HEAD_PIVOT.y}) ` +
+          scaleAround(HEAD_CENTER.x, HEAD_CENTER.y, 1 - Math.abs(yaw) * 0.05, 1)
       );
-      // 耳朵反向小位移、五官同向大位移 → 視差深度
-      this.el.ears.setAttribute('transform', `translate(${fmt(-yaw * 12)} 0)`);
-      this.el.features.setAttribute('transform', `translate(${fmt(yaw * 44)} ${fmt(pitch * 32)})`);
 
-      // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼
+      // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
       const eyeScale = 1 + surprised * 0.18;
       const blinkL = clamp(Math.max(p.blinkL, sleep), 0, 1);
       const blinkR = clamp(Math.max(p.blinkR, sleep), 0, 1);
       const openL = Math.max(0.05, 1 - blinkL);
       const openR = Math.max(0.05, 1 - blinkR);
-      this.el.eyeLOpen.setAttribute('transform', scaleAround(EYE_L.x, EYE_L.y, eyeScale, openL * eyeScale));
-      this.el.eyeROpen.setAttribute('transform', scaleAround(EYE_R.x, EYE_R.y, eyeScale, openR * eyeScale));
+      const look = `translate(${fmt(yaw * 5)} ${fmt(pitch * 4)}) `;
+      this.el.eyeLOpen.setAttribute('transform', look + scaleAround(EYE_L.x, EYE_L.y, eyeScale, openL * eyeScale));
+      this.el.eyeROpen.setAttribute('transform', look + scaleAround(EYE_R.x, EYE_R.y, eyeScale, openR * eyeScale));
       const happyEyes = happy * (1 - sleep);
       this.el.eyeLOpen.setAttribute('opacity', fmt(1 - happyEyes));
       this.el.eyeROpen.setAttribute('opacity', fmt(1 - happyEyes));
+      this.el.eyeLClosed.setAttribute('opacity', fmt(smoothstep(0.55, 0.95, blinkL) * (1 - happyEyes)));
+      this.el.eyeRClosed.setAttribute('opacity', fmt(smoothstep(0.55, 0.95, blinkR) * (1 - happyEyes)));
       this.el.eyeLHappy.setAttribute('opacity', fmt(happyEyes));
       this.el.eyeRHappy.setAttribute('opacity', fmt(happyEyes));
 
-      // 嘴巴：張嘴量控制開口大小，閉嘴線條淡出
+      // 嘴巴：張嘴量控制嘴型大小，閉嘴時完全隱藏（露出底圖的微笑）
       const jaw = clamp(p.jaw * (1 - sleep), 0, 1);
       const openAmt = smoothstep(0.05, 0.3, jaw);
-      this.el.mouthClosed.setAttribute('opacity', fmt(1 - openAmt));
       this.el.mouthOpen.setAttribute('opacity', fmt(openAmt));
       const mw = lerp(0.7, 1.15, jaw) * (1 - surprised * 0.15);
       const mh = Math.max(0.05, jaw) * (1 + surprised * 0.35);
       this.el.mouthOpen.setAttribute('transform', scaleAround(MOUTH_TOP.x, MOUTH_TOP.y, mw, mh));
 
-      // 腮紅：平常淡淡的，笑的時候加深
-      this.el.blush.setAttribute('opacity', fmt(0.3 + 0.6 * Math.max(p.smile, happy)));
-
-      // 鬍鬚：待機時輕輕擺動，說話時抖一下
-      const wig = Math.sin((t * Math.PI * 2) / 2.8) * 2 + jaw * Math.sin(t * 40) * 2;
-      this.el.whiskersL.setAttribute('transform', `rotate(${fmt(wig)} ${WHISKER_L.x} ${WHISKER_L.y})`);
-      this.el.whiskersR.setAttribute('transform', `rotate(${fmt(-wig)} ${WHISKER_R.x} ${WHISKER_R.y})`);
+      // 腮紅：底圖已有淡淡的，笑的時候再疊一層
+      this.el.blush.setAttribute('opacity', fmt(0.7 * Math.max(p.smile, happy)));
 
       // 反應符號：睡著的 zzz 會漂浮，驚訝的 ! 會跳動
-      const zzzFloat = Math.sin((t * Math.PI * 2) / 2.2) * 6;
+      const zzzFloat = Math.sin((t * Math.PI * 2) / 2.2) * 8;
       this.el.zzz.setAttribute('opacity', fmt(sleep));
       this.el.zzz.setAttribute('transform', `translate(0 ${fmt(-zzzFloat)})`);
       const pop = 1 + surprised * 0.15 * Math.sin(t * 18);

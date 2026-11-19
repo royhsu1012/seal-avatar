@@ -242,38 +242,56 @@ desktop/package.json        相依與 electron-builder 打包設定
 desktop/main.js             主程序：視窗、系統匣與右鍵選單、狀態存檔
 desktop/preload.js          注入網頁的桌面層：拖曳區 class、縮放握把、狀態回報
 desktop/server.js           內建靜態伺服器與 /params、/diag（同 tools/serve.ps1）
-desktop/tools/make-icon.js  從海豹 SVG 產生圖示
+desktop/tools/make-icon.js  從海豹圖產生圖示（底圖換成 PNG 後尚未重新產生，圖示仍是舊造型）
 desktop/assets/             icon.png、tray.png
 ```
 
 網頁端只有 `css/style.css` 多了一段 `html.desktop` 規則；`index.html` 與 `js/` 完全不知道自己在 Electron 裡。
 
-## 換成你自己的圖
+## 角色圖怎麼做的、怎麼換
 
-角色就是 `index.html` 裡的一段 SVG，程式只靠 **圖層 id** 找東西。
-保留下面這些 id，裡面的形狀、顏色、數量都可以隨意換：
+角色是 **一張去背的 PNG 底圖**（`art/seal.png`，1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
+
+- **眼睛**：`eye-patches` 先用毛色的小色塊蓋住底圖畫好的眼睛，再用向量畫一對一樣的眼睛。
+  這樣才能眨眼（垂直壓扁）、眼珠跟著轉頭微移、驚訝放大、開心換成笑眼。
+- **嘴巴**：底圖本身是閉嘴微笑；張嘴時才疊一個嘴型在吻部上，依張嘴量從上緣往下拉開。
+- **腮紅**：底圖已經有，開心時再疊一層加深。
+- **zzz / !**：睡覺與驚訝的符號。
+
+頭轉、點頭、側傾是整張圖一起位移、旋轉、略微壓扁，疊圖層跟著整張圖動才不會對不準。
+
+程式只靠 **圖層 id** 找東西，換圖時保留這些 id：
 
 | id | 內容 | 程式會做的事 |
 |---|---|---|
 | `avatar` | 整隻角色 | 呼吸起伏、開心彈跳 |
-| `head` | 整顆頭 | 跟著 yaw / pitch / roll 移動旋轉 |
-| `ears` | 耳朵 | 轉頭時反向小位移（深度感） |
-| `features` | 五官群組 | 轉頭時同向大位移（視差） |
-| `eye-left-open` `eye-right-open` | 張開的眼睛 | 眨眼時垂直壓扁，開心時淡出 |
+| `head` | 底圖 + 所有疊圖層 | 跟著 yaw / pitch / roll 移動旋轉 |
+| `eye-left-open` `eye-right-open` | 張開的眼睛 | 眨眼時垂直壓扁，開心時淡出，眼珠微移 |
+| `eye-left-closed` `eye-right-closed` | 閉眼線條 | 眼睛快閉上時淡入 |
 | `eye-left-happy` `eye-right-happy` | 笑眼 | 開心時淡入 |
-| `mouth-closed` | 閉嘴線條 | 張嘴時淡出 |
 | `mouth-open` | 張開的嘴（含舌頭） | 依張嘴量從上緣往下拉開 |
-| `blush` | 腮紅 | 笑的時候加深 |
-| `whiskers-left` `whiskers-right` | 鬍鬚 | 待機擺動、說話抖動 |
+| `blush` | 加深用的腮紅 | 笑的時候淡入 |
 | `zzz` `exclaim` | 反應符號 | 睡覺 / 驚訝時出現 |
 
 「左 / 右」一律指 **畫面上** 的左右。
 
-座標系是 600 × 600。如果你改了眼睛或嘴巴的位置，請同步修改 `js/rig.js` 最上面的常數
-（`EYE_L`、`EYE_R`、`MOUTH_TOP` 等），眨眼和張嘴才會以正確的點為中心縮放。
+### 換一張底圖的步驟
 
-要用點陣圖（PNG）的話，把對應圖層換成 `<image href="..." />` 即可，id 一樣放在包住它的 `<g>` 上。
-注意用 file:// 開啟時 Chrome 可能擋外部圖片，這種情況請用本機伺服器。
+1. 準備正面、坐姿、嘴閉眼開、純綠色背景的圖（生圖工具的提示詞可參考：front view, sitting, eyes open,
+   mouth closed, solid green background #3CB371, nothing cropped）。
+2. 放到 `art/src/`，用 `tools/chroma-key.html` 去背成透明 PNG（伺服器開著時）：
+
+   ```powershell
+   chrome --headless=new --default-background-color=00000000 --window-size=1024,1024 --screenshot=art\seal.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/你的圖.webp"
+   ```
+
+   邊緣有綠邊就把網址加上 `&hi=170` 之類調低門檻。
+3. 量出新圖的眼睛中心、嘴巴上緣、腮紅位置（座標系就是圖片像素），改 `index.html` 裡疊圖層的座標，
+   以及 `js/rig.js` 最上面的常數（`EYE_L`、`EYE_R`、`MOUTH_TOP` 等）。
+4. `eye-patches` 的顏色改成新圖眼睛旁邊的毛色，大小要蓋得住原本畫好的眼睛。
+
+目前這張底圖是用生圖工具依參考圖產生的，原始檔在 `art/src/seal.webp`。
+注意用 file:// 開啟時 Chrome 會擋外部圖片，請一律用本機伺服器。
 
 ## 調整靈敏度
 
@@ -291,12 +309,15 @@ desktop/assets/             icon.png、tray.png
 ## 專案結構
 
 ```
-index.html          頁面、控制面板、海豹 SVG
+index.html          頁面、控制面板、角色（PNG 底圖 + 疊圖層）
+art/seal.png        去背後的角色底圖
+art/src/            底圖的原始檔
 css/style.css       版面與背景模式
-js/rig.js           SealRig：參數 → SVG 變形與反應
+js/rig.js           SealRig：參數 → 位移、變形與反應
 js/app.js           攝影機、MediaPipe、參數計算、平滑、主迴圈
 start-server.bat    雙擊啟動本機伺服器
 tools/serve.ps1     零相依的本機靜態伺服器
+tools/chroma-key.html 綠底去背工具（配合無頭 Chrome 輸出透明 PNG）
 obs/SealVTuber.json 可匯入 OBS 的場景集合（Teams 全畫面 + 直播疊圖）
 obs/teams.html      給 OBS 本機檔案模式用的轉跳頁
 obs/overlay.html    同上，透明背景版
@@ -326,9 +347,12 @@ OBS 的瀏覽器來源確定不給攝影機權限，所以一定要用追蹤頁�
 注意同一台電腦同一時間只能開一個追蹤頁（Chrome 的 `?mode=tracker` 分頁或桌面版其中之一），
 後開的那個會拿不到攝影機。
 
+正式造型已換成生圖工具產生、去背後的白海豹寶寶 PNG，五種反應都已在瀏覽器裡用疊圖層驗證；
+真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。桌面版的安裝檔與可攜版要重新執行 `npm run dist` 才會包進新底圖。
+
 接下來可以做：
 
-- 換上正式繪圖
+- 桌面版重新打包、圖示換成新造型
 - 眼珠跟著視線移動
 - 更多表情（皺眉、嘟嘴、挑眉）
 - 用音量輔助嘴型，說話更自然

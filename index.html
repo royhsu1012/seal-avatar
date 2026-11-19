@@ -9,90 +9,59 @@
 <body class="bg-soft mirror">
   <main id="stage">
     <!--
-      海豹佔位造型（頭 + 脖子）。
-      之後要換成正式繪圖時，保留下面這些 id 即可，程式只靠 id 找圖層：
-        avatar / head / ears / features
-        eye-left-open / eye-left-happy / eye-right-open / eye-right-happy
-        mouth-closed / mouth-open / blush / whiskers-left / whiskers-right
-        zzz / exclaim
-      座標系為 600 x 600，頭部中心 (300, 300)，眼睛中心 (232, 282) 與 (368, 282)，嘴巴上緣 (300, 376)。
-      改了這些位置的話請同步修改 js/rig.js 開頭的常數。
+      角色 = 一張去背的 PNG 底圖（art/seal.png，1024 x 1024）+ 疊在臉上的向量圖層。
+      程式只靠下面這些 id 找圖層，換圖時保留 id、依新圖量座標並同步修改 js/rig.js 開頭的常數：
+        avatar / head
+        eye-left-open / eye-left-closed / eye-left-happy
+        eye-right-open / eye-right-closed / eye-right-happy
+        mouth-open / blush / zzz / exclaim
+      眼睛的做法：eye-patches 先用毛色蓋住底圖畫好的眼睛，再用向量畫一對一樣的眼睛，才能眨眼、看方向、換笑眼。
+      目前座標：眼睛中心 (401, 350) 與 (636, 350)，嘴巴上緣 (515, 452)，腮紅 (356, 418) 與 (678, 416)。
     -->
-    <svg id="seal" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
+    <svg id="seal" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
       <defs>
-        <radialGradient id="g-head" cx="45%" cy="35%" r="75%">
-          <stop offset="0" stop-color="#D8E1E9" />
-          <stop offset="1" stop-color="#B3C1CE" />
-        </radialGradient>
-        <linearGradient id="g-neck" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#B3C1CE" />
-          <stop offset="1" stop-color="#9DAEBC" />
-        </linearGradient>
+        <filter id="patch-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" /></filter>
       </defs>
 
       <g id="avatar">
-        <!-- 脖子 -->
-        <g id="neck">
-          <path d="M 212 418 Q 300 472 388 418 Q 446 520 468 640 L 132 640 Q 154 520 212 418 Z" fill="url(#g-neck)" />
-          <ellipse cx="300" cy="575" rx="92" ry="80" fill="#EDF2F6" opacity="0.9" />
-        </g>
-
-        <!-- 頭 -->
         <g id="head">
-          <g id="head-base">
-            <g id="ears">
-              <circle cx="120" cy="312" r="17" fill="#9DAEBC" />
-              <circle cx="480" cy="312" r="17" fill="#9DAEBC" />
-            </g>
-            <ellipse cx="300" cy="300" rx="190" ry="172" fill="url(#g-head)" />
-          </g>
+          <image id="base" href="art/seal.png" x="0" y="0" width="1024" height="1024" />
 
-          <!-- 五官（會做視差位移） -->
           <g id="features">
-            <ellipse id="snout" cx="300" cy="364" rx="112" ry="78" fill="#EEF3F7" />
-
-            <g id="blush" opacity="0.3">
-              <ellipse cx="176" cy="352" rx="28" ry="15" fill="#F5A3B5" />
-              <ellipse cx="424" cy="352" rx="28" ry="15" fill="#F5A3B5" />
+            <!-- 蓋住底圖的眼睛 -->
+            <g id="eye-patches" fill="#EFEFED" filter="url(#patch-soft)">
+              <ellipse cx="401" cy="350" rx="54" ry="62" />
+              <ellipse cx="636" cy="350" rx="54" ry="62" />
             </g>
 
-            <g id="whiskers" stroke="#7D8C9A" stroke-width="3" stroke-linecap="round" fill="none">
-              <g id="whiskers-left">
-                <line x1="245" y1="348" x2="158" y2="330" />
-                <line x1="245" y1="360" x2="150" y2="360" />
-                <line x1="245" y1="372" x2="158" y2="392" />
-              </g>
-              <g id="whiskers-right">
-                <line x1="355" y1="348" x2="442" y2="330" />
-                <line x1="355" y1="360" x2="450" y2="360" />
-                <line x1="355" y1="372" x2="442" y2="392" />
-              </g>
+            <g id="blush" opacity="0">
+              <ellipse cx="356" cy="418" rx="50" ry="32" fill="#F2A0AC" />
+              <ellipse cx="678" cy="416" rx="54" ry="34" fill="#F2A0AC" />
             </g>
 
             <g id="eye-left">
               <g id="eye-left-open">
-                <circle cx="232" cy="282" r="27" fill="#2A2E35" />
-                <circle cx="241" cy="272" r="9" fill="#FFFFFF" />
-                <circle cx="224" cy="292" r="4" fill="#FFFFFF" opacity="0.8" />
+                <ellipse cx="401" cy="350" rx="45" ry="52" fill="#1A1719" />
+                <ellipse cx="387" cy="328" rx="10" ry="16" transform="rotate(-15 387 328)" fill="#FFFFFF" />
+                <circle cx="416" cy="378" r="5" fill="#FFFFFF" opacity="0.85" />
               </g>
-              <path id="eye-left-happy" d="M 203 292 Q 232 256 261 292" stroke="#2A2E35" stroke-width="10" stroke-linecap="round" fill="none" opacity="0" />
+              <path id="eye-left-closed" d="M 358 356 Q 401 378 444 356" stroke="#2B2628" stroke-width="6" stroke-linecap="round" fill="none" opacity="0" />
+              <path id="eye-left-happy" d="M 356 366 Q 401 316 446 366" stroke="#1A1719" stroke-width="12" stroke-linecap="round" fill="none" opacity="0" />
             </g>
             <g id="eye-right">
               <g id="eye-right-open">
-                <circle cx="368" cy="282" r="27" fill="#2A2E35" />
-                <circle cx="377" cy="272" r="9" fill="#FFFFFF" />
-                <circle cx="360" cy="292" r="4" fill="#FFFFFF" opacity="0.8" />
+                <ellipse cx="636" cy="350" rx="45" ry="52" fill="#1A1719" />
+                <ellipse cx="622" cy="328" rx="10" ry="16" transform="rotate(-15 622 328)" fill="#FFFFFF" />
+                <circle cx="651" cy="378" r="5" fill="#FFFFFF" opacity="0.85" />
               </g>
-              <path id="eye-right-happy" d="M 339 292 Q 368 256 397 292" stroke="#2A2E35" stroke-width="10" stroke-linecap="round" fill="none" opacity="0" />
+              <path id="eye-right-closed" d="M 593 356 Q 636 378 679 356" stroke="#2B2628" stroke-width="6" stroke-linecap="round" fill="none" opacity="0" />
+              <path id="eye-right-happy" d="M 591 366 Q 636 316 681 366" stroke="#1A1719" stroke-width="12" stroke-linecap="round" fill="none" opacity="0" />
             </g>
 
-            <path id="nose" d="M 281 330 Q 300 321 319 330 Q 313 351 300 357 Q 287 351 281 330 Z" fill="#2A2E35" />
-
             <g id="mouth">
-              <path id="mouth-closed" d="M 268 374 Q 284 392 300 376 Q 316 392 332 374" stroke="#2A2E35" stroke-width="6" stroke-linecap="round" fill="none" />
               <g id="mouth-open" opacity="0">
-                <ellipse cx="300" cy="396" rx="22" ry="20" fill="#5B2A3A" />
-                <ellipse cx="300" cy="406" rx="12" ry="8" fill="#F08CA0" />
+                <path d="M 478 452 Q 515 446 552 452 Q 552 512 515 516 Q 478 512 478 452 Z" fill="#5B2A3A" stroke="#2B2628" stroke-width="4" stroke-linejoin="round" />
+                <ellipse cx="515" cy="500" rx="18" ry="11" fill="#F08CA0" />
               </g>
             </g>
           </g>
@@ -100,8 +69,8 @@
 
         <!-- 反應符號 -->
         <g id="fx" font-family="system-ui, 'Noto Sans TC', sans-serif" font-weight="700">
-          <text id="zzz" x="436" y="150" font-size="42" fill="#5A6B7A" opacity="0">z z z</text>
-          <text id="exclaim" x="452" y="172" font-size="72" fill="#F0735A" opacity="0">!</text>
+          <text id="zzz" x="740" y="250" font-size="68" fill="#5A6B7A" opacity="0">z z z</text>
+          <text id="exclaim" x="770" y="290" font-size="120" fill="#F0735A" opacity="0">!</text>
         </g>
       </g>
     </svg>
