@@ -17,14 +17,15 @@
 
 ## 功能
 
-- 頭部左右轉、上下點、側傾，五官有視差做出假 3D 感
+- 頭部左右轉、上下點、側傾（只動頭，身體不動），眼珠順著方向微移
 - 左右眼獨立眨眼
 - 張嘴說話，嘴巴大小跟著嘴型
+- 手部互動：本人哪隻手在動，海豹那一側的前鰭就微微晃（用畫面兩側的動作量偵測，不跑手部模型）
 - 表情自動反應，不用按任何鍵：
-  - 微笑 → 笑眼、腮紅加深、輕輕彈跳
-  - 張大嘴 → 眼睛放大、圓嘴、冒出驚嘆號
-  - 3 秒沒看到臉 → 閉眼、低頭、zzz
-  - 待機時會呼吸起伏、鬍鬚輕擺
+  - 微笑 → 笑眼、腮紅加深、輕輕彈跳、前鰭拍動
+  - 張大嘴 → 眼睛放大、圓嘴、頭往上彈、前鰭抬起、冒出驚嘆號
+  - 3 秒沒看到臉 → 閉眼、頭微微低下、zzz
+  - 待機時會呼吸起伏、前鰭輕輕起伏
 - 背景一鍵切換：柔和 / 綠幕 / 藍幕 / 透明，給 OBS 用
 - 示範模式：沒有攝影機也能看到所有反應
 
@@ -77,7 +78,7 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | `mode=tracker` | 追蹤頁：開攝影機追蹤，把參數送到本機伺服器 `/params` |
 | `mode=viewer` | 顯示頁：不開攝影機，從 `/params` 取參數畫海豹。給 OBS 用 |
 | `diag=1` | 診斷模式：每秒把追蹤數值寫一行到 `tools\serve.ps1` 的終端機，方便調整靈敏度。只送到本機伺服器 |
-| `pose=yaw:1,roll:6,state:sleep` | 固定成一個姿勢不動，換圖時用來檢查圖層對不對得準。可用 yaw、pitch、roll、blinkL、blinkR、jaw、smile、state |
+| `pose=yaw:1,roll:6,state:sleep` | 固定成一個姿勢不動，換圖時用來檢查圖層對不對得準。可用 yaw、pitch、roll、blinkL、blinkR、jaw、smile、handL、handR、state |
 
 ## 接進 OBS、直播與 Teams
 
@@ -319,6 +320,8 @@ desktop/assets/             icon.png、tray.png
 - `yawGain` / `pitchGain`：轉頭幅度
 - `follow`：平滑速度，數字越大越跟手、越小越柔
 - `sleepAfterMs`：多久沒看到臉進入睡覺
+- `hand`：手部互動的門檻。程式不跑手部模型，只量攝影機畫面左右兩側（臉以外）前後幀的平均亮度變化，
+  `lo` 以下當雜訊、`hi` 以上算全力揮手；`attack` / `decay` 是鰭跟上與放下的速度。誤觸發就把 `lo` 調高
 
 不用改檔案也能試：開瀏覽器主控台（F12），直接改 `sealVTuber.TUNING.yawGain = 3`，立即生效。
 `sealVTuber.pause(true)` 之後可以自己呼叫 `sealVTuber.rig.apply(參數, 0.1, '狀態')` 測試造型。

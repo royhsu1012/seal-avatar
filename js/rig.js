@@ -17,6 +17,8 @@
  *   blinkR  0..1    畫面右邊那隻眼睛的閉合程度
  *   jaw     0..1    張嘴程度
  *   smile   0..1    笑容程度
+ *   handL   0..1    畫面左側（本人）的手部動作量，對應左鰭；沒有時可省略
+ *   handR   0..1    畫面右側的手部動作量，對應右鰭
  *   present boolean 目前是否偵測到臉
  *
  * 狀態 state（由 SealRig.classify 決定）：idle / talking / happy / surprised / sleep
@@ -111,11 +113,15 @@
       this.el.head.setAttribute('transform', `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll)} ${NECK.x} ${NECK.y})`);
 
       // 前鰭：平常輕輕起伏（0～1.5 度）、開心時拍動（最多再加 6 度）、驚訝時抬起 4 度、睡著時放下；
+      // 本人哪隻手在動（p.handL / p.handR，0..1），那一側的鰭就跟著微微晃（最多再抬 5 度並以 2 Hz 抖動）。
       // 角度一律 ≥ 0（左鰭順時針、右鰭逆時針 = 往外抬，不往肚子裡壓），兩邊相位稍微錯開才不會像機器
       const awake = 1 - sleep * 0.7;
       const flap = happy * 3 * (1 + Math.sin((t * Math.PI * 2) / 0.45));
-      const liftL = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1) + flap + surprised * 4) * awake;
-      const liftR = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1 + 1.3) + flap + surprised * 4) * awake;
+      const wiggle = 2.5 + 2.5 * Math.sin((t * Math.PI * 2) / 0.5);
+      const handL = clamp(p.handL || 0, 0, 1);
+      const handR = clamp(p.handR || 0, 0, 1);
+      const liftL = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1) + flap + surprised * 4 + handL * wiggle) * awake;
+      const liftR = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1 + 1.3) + flap + surprised * 4 + handR * wiggle) * awake;
       this.el.flipperL.setAttribute('transform', `rotate(${fmt(liftL)} ${FLIPPER_L.x} ${FLIPPER_L.y})`);
       this.el.flipperR.setAttribute('transform', `rotate(${fmt(-liftR)} ${FLIPPER_R.x} ${FLIPPER_R.y})`);
 

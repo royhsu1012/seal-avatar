@@ -38,6 +38,10 @@
     calibrationMs: 1200,
     autoCalibrate: true, // 啟動攝影機、第一次看到臉之後自動校正一次
 
+    // 手部互動：不用手部模型，只量攝影機畫面左右兩側（臉以外）的「動作量」（前後幀的平均亮度差，0..1），
+    // 有東西在動那一側的鰭就會微微晃。lo 以下當雜訊，hi 以上算全力揮手；attack / decay 是上升與回落的速度
+    hand: { lo: 0.015, hi: 0.07, attack: 20, decay: 4 },
+
     // 平滑跟隨速度（每秒），越大越跟得緊、越小越柔
     follow: { pose: 14, blink: 30, jaw: 22, smile: 8 },
     neutralReturn: 3, // 找不到臉時回到正面的速度
@@ -73,7 +77,7 @@
   };
 
   const STATE_LABEL = { idle: '平常', talking: '說話', happy: '開心', surprised: '驚訝', sleep: '睡覺' };
-  const NEUTRAL = { yaw: 0, pitch: 0, roll: 0, blinkL: 0, blinkR: 0, jaw: 0, smile: 0, present: false };
+  const NEUTRAL = { yaw: 0, pitch: 0, roll: 0, blinkL: 0, blinkR: 0, jaw: 0, smile: 0, handL: 0, handR: 0, present: false };
 
   let rig;
   try {
@@ -206,10 +210,20 @@
     const cats = (result.faceBlendshapes && result.faceBlendshapes[0] && result.faceBlendshapes[0].categories) || [];
     for (const c of cats) bs[c.categoryName] = c.score;
 
+    // 臉在畫面上的橫向範圍（0..1），手部動作偵測會避開這一段
+    let faceX0 = 1;
+    let faceX1 = 0;
+    for (const pt of lm) {
+      if (pt.x < faceX0) faceX0 = pt.x;
+      if (pt.x > faceX1) faceX1 = pt.x;
+    }
+
     return {
       yaw,
       pitch,
       roll,
+      faceX0,
+      faceX1,
       blinkLeft: bs.eyeBlinkLeft || 0, // 本人的左眼
       blinkRight: bs.eyeBlinkRight || 0, // 本人的右眼
       jaw: bs.jawOpen || 0,
@@ -267,8 +281,47 @@
       blinkR: remap(blinkScreenR, TUNING.blink),
       jaw: remap(raw.jaw, TUNING.jaw),
       smile: remap(raw.smile, TUNING.smile),
+      // 畫面左側的動作是本人的右手；鏡像時對應到海豹畫面右邊的鰭
+      handL: remap((mirror ? raw.motionRight : raw.motionLeft) || 0, TUNING.hand),
+      handR: remap((mirror ? raw.motionLeft : raw.motionRight) || 0, TUNING.hand),
       present: true,
     };
+  }
+
+  // ---------- 手部動作量：把畫面縮成 64 x 48，比較前後兩幀，只看臉兩側的區域 ----------
+  const motionCanvas = document.createElement('canvas');
+  motionCanvas.width = 64;
+  motionCanvas.height = 48;
+  const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
+  let prevGray = null;
+
+  /** 回傳 { left, right }：畫面左右兩側的平均亮度變化（0..1）。faceX0 / faceX1 是臉在畫面上的橫向範圍（0..1） */
+  function measureMotion(faceX0, faceX1) {
+    const W = motionCanvas.width;
+    const H = motionCanvas.height;
+    let gray;
+    try {
+      motionCtx.drawImage(video, 0, 0, W, H);
+      const data = motionCtx.getImageData(0, 0, W, H).data;
+      gray = new Float32Array(W * H);
+      for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (data[j] * 3 + data[j + 1] * 6 + data[j + 2]) / 10;
+    } catch (e) {
+      return { left: 0, right: 0 };
+    }
+    let left = 0, right = 0, nl = 0, nr = 0;
+    if (prevGray) {
+      const xl = Math.min(0.38, faceX0 - 0.06) * W; // 臉的左邊再留一點空隙，轉頭不算手
+      const xr = Math.max(0.62, faceX1 + 0.06) * W;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = y * W + x;
+          if (x < xl) { left += Math.abs(gray[i] - prevGray[i]); nl++; }
+          else if (x > xr) { right += Math.abs(gray[i] - prevGray[i]); nr++; }
+        }
+      }
+    }
+    prevGray = gray;
+    return { left: nl ? left / nl / 255 : 0, right: nr ? right / nr / 255 : 0 };
   }
 
   // ---------- 攝影機 ----------
@@ -345,6 +398,8 @@
       blinkR: 0,
       jaw: 0,
       smile: 0,
+      handL: 0,
+      handR: 0,
       present: true,
     };
     const bp = t % 3.2; // 每 3.2 秒眨一次
@@ -352,7 +407,8 @@
     p.blinkL = p.blinkR = blink;
 
     if (phase < 4) {
-      // 平常
+      // 平常；中間揮一下右手
+      if (phase > 1.5 && phase < 3.5) p.handR = 0.5 + 0.5 * Math.sin(t * 9);
     } else if (phase < 8) {
       p.jaw = clamp(0.35 + 0.35 * Math.sin(t * 14) + 0.15 * Math.sin(t * 5.3), 0, 0.5); // 說話
     } else if (phase < 11) {
@@ -403,7 +459,11 @@
         console.error(e);
       }
       const raw = result ? extract(result, video.videoWidth, video.videoHeight) : null;
+      // 沒有臉也要更新前一幀，臉一回來才不會把整段空檔的差異當成揮手
+      const motion = measureMotion(raw ? raw.faceX0 : 0.3, raw ? raw.faceX1 : 0.7);
       if (raw) {
+        raw.motionLeft = motion.left;
+        raw.motionRight = motion.right;
         lastRaw = raw;
         if (autoCalibratePending) {
           // 第一次看到臉就自動校正一次（使用者剛按下按鈕，通常正看著鏡頭）
@@ -440,8 +500,12 @@
       current.blinkR = follow(current.blinkR, target.blinkR, f.blink, dt);
       current.jaw = follow(current.jaw, target.jaw, f.jaw, dt);
       current.smile = follow(current.smile, target.smile, f.smile, dt);
+      // 手部動作量：上升快、回落慢，揮手時才會是連續的擺動而不是閃爍
+      const h = TUNING.hand;
+      current.handL = follow(current.handL, target.handL, target.handL > current.handL ? h.attack : h.decay, dt);
+      current.handR = follow(current.handR, target.handR, target.handR > current.handR ? h.attack : h.decay, dt);
     } else {
-      for (const k of ['yaw', 'pitch', 'roll', 'blinkL', 'blinkR', 'jaw', 'smile']) {
+      for (const k of ['yaw', 'pitch', 'roll', 'blinkL', 'blinkR', 'jaw', 'smile', 'handL', 'handR']) {
         current[k] = follow(current[k], 0, TUNING.neutralReturn, dt);
       }
     }
@@ -482,6 +546,8 @@
       bR: n(current.blinkR),
       jaw: n(current.jaw),
       smile: n(current.smile),
+      hL: n(current.handL),
+      hR: n(current.handR),
       present: current.present ? '1' : '0',
     });
     if (lastRaw) {
@@ -492,6 +558,8 @@
       q.set('rBlinkR', n(lastRaw.blinkRight));
       q.set('rJaw', n(lastRaw.jaw));
       q.set('rSmile', n(lastRaw.smile));
+      q.set('rMotL', (lastRaw.motionLeft || 0).toFixed(3));
+      q.set('rMotR', (lastRaw.motionRight || 0).toFixed(3));
       q.set('cYaw', n(calib.yaw));
       q.set('cPitch', n(calib.pitch));
       q.set('baseL', n(blinkBase.left));
@@ -526,6 +594,8 @@
           blinkR: d.blinkR || 0,
           jaw: d.jaw || 0,
           smile: d.smile || 0,
+          handL: d.handL || 0,
+          handR: d.handR || 0,
           present: !!d.present && fresh,
         };
         if (fresh) lastRemoteAt = Date.now();
@@ -612,7 +682,7 @@
     toggleDemo();
   } else if (params.has('pose')) {
     // 檢查造型用：?pose=yaw:1,roll:8,state:sleep 固定成一個姿勢不動（換圖時拿來確認圖層對不對得準）
-    const q = { yaw: 0, pitch: 0, roll: 0, blinkL: 0, blinkR: 0, jaw: 0, smile: 0, present: true };
+    const q = { yaw: 0, pitch: 0, roll: 0, blinkL: 0, blinkR: 0, jaw: 0, smile: 0, handL: 0, handR: 0, present: true };
     let state = 'idle';
     for (const kv of params.get('pose').split(',')) {
       const [k, v] = kv.split(':');
