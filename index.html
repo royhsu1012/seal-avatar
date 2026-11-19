@@ -33,6 +33,12 @@
           <stop offset="0" stop-color="#fff" stop-opacity="0" />
           <stop offset="1" stop-color="#fff" stop-opacity="1" />
         </linearGradient>
+        <!-- 頭圖的下巴邊緣往下淡出（y=625 全顯示 → y=672 透明），讓頭融進胸口，不會像貼上去的一塊 -->
+        <linearGradient id="head-fade" gradientUnits="userSpaceOnUse" x1="0" y1="625" x2="0" y2="672">
+          <stop offset="0" stop-color="#fff" stop-opacity="1" />
+          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </linearGradient>
+        <mask id="head-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect x="0" y="0" width="1024" height="1024" fill="url(#head-fade)" /></mask>
         <mask id="flipper-mask-left" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect x="0" y="0" width="500" height="1024" fill="url(#flipper-fade)" /></mask>
         <mask id="flipper-mask-right" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect x="524" y="0" width="500" height="1024" fill="url(#flipper-fade)" /></mask>
         <mask id="body-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
@@ -54,7 +60,7 @@
         </g>
 
         <g id="head">
-          <image id="base" href="art/seal-head.png" x="0" y="0" width="1024" height="1024" />
+          <image id="base" href="art/seal-head.png" x="0" y="0" width="1024" height="1024" mask="url(#head-mask)" />
 
           <g id="features">
             <!-- 蓋住底圖的眼睛 -->

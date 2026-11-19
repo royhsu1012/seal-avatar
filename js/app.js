@@ -40,7 +40,7 @@
 
     // 手部互動：不用手部模型，只量攝影機畫面左右兩側（臉以外）的「動作量」（前後幀的平均亮度差，0..1），
     // 有東西在動那一側的鰭就會微微晃。lo 以下當雜訊，hi 以上算全力揮手；attack / decay 是上升與回落的速度
-    hand: { lo: 0.015, hi: 0.07, attack: 20, decay: 4 },
+    hand: { lo: 0.012, hi: 0.05, attack: 20, decay: 4 },
 
     // 平滑跟隨速度（每秒），越大越跟得緊、越小越柔
     follow: { pose: 14, blink: 30, jaw: 22, smile: 8 },
@@ -295,7 +295,9 @@
   const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
   let prevGray = null;
 
-  /** 回傳 { left, right }：畫面左右兩側的平均亮度變化（0..1）。faceX0 / faceX1 是臉在畫面上的橫向範圍（0..1） */
+  let lastMotion = { left: 0, right: 0 };
+
+  /** 回傳 { left, right }：畫面左右兩側（臉以外）的亮度變化量（0..1）。faceX0 / faceX1 是臉在畫面上的橫向範圍（0..1） */
   function measureMotion(faceX0, faceX1) {
     const W = motionCanvas.width;
     const H = motionCanvas.height;
@@ -306,22 +308,33 @@
       gray = new Float32Array(W * H);
       for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (data[j] * 3 + data[j + 1] * 6 + data[j + 2]) / 10;
     } catch (e) {
-      return { left: 0, right: 0 };
+      return lastMotion;
     }
-    let left = 0, right = 0, nl = 0, nr = 0;
-    if (prevGray) {
-      const xl = Math.min(0.38, faceX0 - 0.06) * W; // 臉的左邊再留一點空隙，轉頭不算手
-      const xr = Math.max(0.62, faceX1 + 0.06) * W;
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = y * W + x;
-          if (x < xl) { left += Math.abs(gray[i] - prevGray[i]); nl++; }
-          else if (x > xr) { right += Math.abs(gray[i] - prevGray[i]); nr++; }
-        }
+    if (!prevGray) {
+      prevGray = gray;
+      return lastMotion;
+    }
+    // 區域以臉為基準：臉兩側各留臉寬 20% 的空隙，轉頭、點頭不算手
+    const faceW = Math.max(0.1, faceX1 - faceX0);
+    const xl = (faceX0 - faceW * 0.2) * W;
+    const xr = (faceX1 + faceW * 0.2) * W;
+    let left = 0, right = 0, total = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const d = Math.abs(gray[i] - prevGray[i]);
+        total += d;
+        if (x < xl) left += d;
+        else if (x > xr) right += d;
       }
     }
+    // 頁面每秒跑 60 次但攝影機只有 30 幀，一半的幀跟前一幀一模一樣，差異是 0：這種幀跳過，沿用上一個值
+    if (total === 0) return lastMotion;
     prevGray = gray;
-    return { left: nl ? left / nl / 255 : 0, right: nr ? right / nr / 255 : 0 };
+    // 兩側都除以同樣的參考面積（畫面的 30%），臉偏一邊時左右區域大小不同也不會一邊偏小
+    const ref = W * H * 0.3 * 255;
+    lastMotion = { left: left / ref, right: right / ref };
+    return lastMotion;
   }
 
   // ---------- 攝影機 ----------
@@ -560,6 +573,8 @@
       q.set('rSmile', n(lastRaw.smile));
       q.set('rMotL', (lastRaw.motionLeft || 0).toFixed(3));
       q.set('rMotR', (lastRaw.motionRight || 0).toFixed(3));
+      q.set('fX0', n(lastRaw.faceX0));
+      q.set('fX1', n(lastRaw.faceX1));
       q.set('cYaw', n(calib.yaw));
       q.set('cPitch', n(calib.pitch));
       q.set('baseL', n(blinkBase.left));
