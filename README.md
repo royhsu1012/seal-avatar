@@ -157,7 +157,10 @@ Chrome / Edge 的追蹤頁 (?mode=tracker) ──攝影機追蹤──▶ 本機
 
 ### 安裝與啟動
 
-需要 [Node.js](https://nodejs.org/) LTS（只有自己跑原始碼或打包時需要，打包好的 exe 不需要）：
+只是要用的話不需要 Node：直接執行打包好的安裝版 `SealVTuber-<版本>-Setup.exe`（見下方「打包成安裝版與可攜版 exe」），
+裝好後從開始功能表或桌面捷徑「海豹 VTuber」啟動即可。
+
+自己跑原始碼或打包時才需要 [Node.js](https://nodejs.org/) LTS：
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
@@ -211,16 +214,23 @@ npm start
 npm start -- --port=8790
 ```
 
-### 打包成可攜式 exe
+### 打包成安裝版與可攜版 exe
 
 ```powershell
 cd desktop
 npm run dist
 ```
 
-產出 `desktop\dist\SealVTuber-0.1.0-portable.exe`，單一檔案、不用安裝，拿到任何 Windows 10/11 電腦都能跑
-（第一次執行會解壓到暫存資料夾，開得比較慢；執行時需要網路載入追蹤模型，與網頁版相同）。
-打包工具是 [electron-builder](https://www.electron.build/)（MIT）。
+會在 `desktop\dist\` 產出兩個檔案，拿到任何 Windows 10/11 電腦都能用（執行時需要網路載入追蹤模型，與網頁版相同）：
+
+| 檔案 | 用途 |
+|---|---|
+| `SealVTuber-0.1.0-Setup.exe` | **安裝版**，平常使用建議用這個。只裝給目前使用者、不需要管理員權限，可以選安裝資料夾，會建立開始功能表與桌面捷徑「海豹 VTuber」，要移除時到「設定 → 應用程式」解除安裝。安裝後啟動很快。 |
+| `SealVTuber-0.1.0-portable.exe` | **可攜版**，單一檔案、不用安裝，適合放隨身碟或暫時試用。每次啟動會先解壓到暫存資料夾，所以開得比較慢。 |
+
+兩個版本共用同一份設定（視窗位置、開關狀態存在 `%APPDATA%\SealVTuber`），不會互相干擾。
+exe 沒有數位簽章（正式簽章要付費購買憑證），第一次執行時 Windows SmartScreen 可能顯示「Windows 已保護您的電腦」，
+按「其他資訊」→「仍要執行」即可。打包工具是 [electron-builder](https://www.electron.build/)（MIT）。
 
 換了正式繪圖之後，執行 `npm run icons` 會從 `index.html` 的海豹 SVG 重新產生 `desktop\assets\icon.png`（exe 與視窗圖示）
 和 `tray.png`（系統匣圖示）。

@@ -41,6 +41,12 @@
     "win": {
       "target": [
         {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "portable",
           "arch": [
             "x64"
@@ -48,6 +54,18 @@
         }
       ],
       "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-Setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "海豹 VTuber",
+      "uninstallDisplayName": "海豹 VTuber (SealVTuber)",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.exe"
