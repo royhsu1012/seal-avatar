@@ -1,11 +1,13 @@
 /* rig.js — 把追蹤參數套用到海豹上。
  *
- * 角色是一張去背的 PNG 底圖（art/seal.png，1024 x 1024）加上疊在臉上的向量圖層：
- *   - 眼睛：先用毛色的小色塊蓋住底圖畫好的眼睛，再用向量畫一對一樣的眼睛，這樣才能眨眼、看方向、換笑眼
- *   - 嘴巴：張嘴時疊一個嘴型在吻部上；閉嘴就是底圖原本的微笑
- *   - 腮紅：底圖本來就有，開心時再疊一層加深
+ * 角色是兩張同構圖的去背 PNG（1024 x 1024）加上疊在臉上的向量圖層：
+ *   - 身體 art/seal-body.png：固定不動，只跟著整體呼吸起伏
+ *   - 頭 art/seal-head.png：轉頭、點頭、側傾都只動這一層（以脖子為支點平移加旋轉），身體不會跟著歪
+ *   - 眼睛：先用毛色的小色塊蓋住頭圖畫好的眼睛，再用向量畫一對一樣的眼睛，這樣才能眨眼、看方向、換笑眼
+ *   - 嘴巴：張嘴時疊一個嘴型在吻部上；閉嘴就是頭圖原本的微笑
+ *   - 腮紅：頭圖本來就有，開心時再疊一層加深
  *   - zzz / !：反應符號
- * 頭轉與點頭用整張圖的位移、傾斜與些微的左右壓扁來模擬，疊圖層跟著整張圖一起動才不會對不準。
+ * 疊圖層放在頭的群組裡，跟著頭一起動才不會對不準。
  *
  * 輸入參數 p：
  *   yaw     -1..1   左右轉頭（正值 = 朝畫面右邊）
@@ -22,10 +24,12 @@
 (function (global) {
   'use strict';
 
-  // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal.png 量出來），換圖時請同步修改
+  // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal-head.png、seal-body.png 量出來），換圖時請同步修改
   const BASE_CX = 512, BASE_BOTTOM = 964; // 呼吸與彈跳的支點：身體底部中央
-  const EYE_L = { x: 403, y: 352 };
-  const EYE_R = { x: 637, y: 352 };
+  const NECK = { x: 535, y: 600 }; // 頭部旋轉的支點：頭圖下緣中央偏上（頭圖範圍 x 252-817、y 157-671）
+  const HEAD_MOVE = { x: 18, y: 12, roll: 6 }; // 頭最多平移幾像素、側傾幾度；再大會在肩膀處露出身體圓頂的遮罩邊
+  const EYE_L = { x: 401, y: 350 };
+  const EYE_R = { x: 636, y: 350 };
   const MOUTH_TOP = { x: 515, y: 452 };
   const EXCLAIM = { x: 800, y: 250 };
 
@@ -87,19 +91,20 @@
       this.fx.sleep = lerp(this.fx.sleep, state === 'sleep' ? 1 : 0, k * 0.5);
       const { happy, surprised, sleep } = this.fx;
 
-      // 睡著時回到正位不動（整張圖是一體的，垂頭會把身體一起壓歪）
-      const yaw = p.yaw * (1 - sleep);
-      const pitch = p.pitch * (1 - sleep);
-      const roll = p.roll * (1 - sleep);
+      // 睡著時頭回到正位、微微低下；身體永遠不動
+      const yaw = clamp(p.yaw, -1, 1) * (1 - sleep);
+      const pitch = clamp(p.pitch, -1, 1) * (1 - sleep) + 0.5 * sleep;
+      const roll = clamp(p.roll, -HEAD_MOVE.roll, HEAD_MOVE.roll) * (1 - sleep) + 3 * sleep;
 
-      // 呼吸起伏 + 開心時的小彈跳（以身體底部為支點）
+      // 呼吸起伏 + 開心時的小彈跳（以身體底部為支點，整隻一起）
       const breath = 1 + 0.01 * Math.sin((t * Math.PI * 2) / 3.6);
       const bounce = happy * 0.02 * Math.max(0, Math.sin((t * Math.PI * 2) / 0.5));
       this.el.avatar.setAttribute('transform', scaleAround(BASE_CX, BASE_BOTTOM, 1 + bounce * 0.4, breath + bounce));
 
-      // 身體完全不動：整張圖不旋轉也不位移，轉頭與點頭只靠眼珠移動表現（roll 不使用）
-      void roll;
-      this.el.head.setAttribute('transform', '');
+      // 頭：只動頭這一層。轉頭 = 左右平移，點頭 = 上下平移，側傾 = 繞脖子旋轉
+      const hx = yaw * HEAD_MOVE.x;
+      const hy = pitch * HEAD_MOVE.y;
+      this.el.head.setAttribute('transform', `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll)} ${NECK.x} ${NECK.y})`);
 
       // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
       const eyeScale = 1 + surprised * 0.18;
@@ -107,7 +112,7 @@
       const blinkR = clamp(Math.max(p.blinkR, sleep), 0, 1);
       const openL = Math.max(0.05, 1 - blinkL);
       const openR = Math.max(0.05, 1 - blinkR);
-      const look = `translate(${fmt(yaw * 14)} ${fmt(pitch * 10)}) `;
+      const look = `translate(${fmt(yaw * 8)} ${fmt(pitch * 5)}) `; // 眼珠再順著方向多看一點
       this.el.eyeLOpen.setAttribute('transform', look + scaleAround(EYE_L.x, EYE_L.y, eyeScale, openL * eyeScale));
       this.el.eyeROpen.setAttribute('transform', look + scaleAround(EYE_R.x, EYE_R.y, eyeScale, openR * eyeScale));
       const happyEyes = happy * (1 - sleep);

@@ -9,9 +9,11 @@
 <body class="bg-soft mirror">
   <main id="stage">
     <!--
-      角色 = 一張去背的 PNG 底圖（art/seal.png，1024 x 1024）+ 疊在臉上的向量圖層。
+      角色 = 兩張同構圖的去背 PNG（1024 x 1024）+ 疊在臉上的向量圖層：
+        art/seal-body.png 身體（固定不動；頂端多畫了一截圓頂藏在頭後面，用 body-mask 把太高的部分遮掉）
+        art/seal-head.png 頭（轉頭、點頭、側傾都只動這一層，臉上的疊圖層跟著一起動）
       程式只靠下面這些 id 找圖層，換圖時保留 id、依新圖量座標並同步修改 js/rig.js 開頭的常數：
-        avatar / head
+        avatar / body / head
         eye-left-open / eye-left-closed / eye-left-happy
         eye-right-open / eye-right-closed / eye-right-happy
         mouth-open / blush / zzz / exclaim
@@ -21,15 +23,28 @@
     <svg id="seal" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
       <defs>
         <filter id="patch-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" /></filter>
+        <filter id="mask-soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4" /></filter>
+        <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留圓頂內側（比身體輪廓內縮約 16px 的橢圓），
+             這樣頭轉動時露出來的只是沒有描邊的白毛，不會出現第二層黑色輪廓 -->
+        <mask id="body-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+          <g fill="#fff" filter="url(#mask-soft)">
+            <rect x="0" y="505" width="1024" height="519" />
+            <ellipse cx="529" cy="500" rx="249" ry="316" />
+          </g>
+        </mask>
       </defs>
 
       <g id="avatar">
+        <g id="body">
+          <image href="art/seal-body.png" x="0" y="0" width="1024" height="1024" mask="url(#body-mask)" />
+        </g>
+
         <g id="head">
-          <image id="base" href="art/seal.png" x="0" y="0" width="1024" height="1024" />
+          <image id="base" href="art/seal-head.png" x="0" y="0" width="1024" height="1024" />
 
           <g id="features">
             <!-- 蓋住底圖的眼睛 -->
-            <g id="eye-patches" fill="#EFEFED" filter="url(#patch-soft)">
+            <g id="eye-patches" fill="#EDEAE8" filter="url(#patch-soft)">
               <ellipse cx="401" cy="350" rx="54" ry="62" />
               <ellipse cx="636" cy="350" rx="54" ry="62" />
             </g>

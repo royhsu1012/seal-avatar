@@ -6,8 +6,8 @@
 <!--
   把純綠底的角色圖去背成透明 PNG。用法（伺服器開在 8788 時）：
     chrome --headless=new --default-background-color=00000000 --window-size=1024,1024
-           --screenshot=out.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/seal.webp"
-  參數：src 圖片路徑；lo / hi 綠色程度的透明門檻（預設 8 / 235），邊緣有綠邊就把 hi 調低。
+           --screenshot=art/seal-head.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/seal-head.png"
+  參數：src 圖片路徑；lo / hi 綠色程度的透明門檻（預設 40 / 190），邊緣有綠邊就把 hi 調低；cut 低於多少 alpha 就全透明。
   演算法：greenness = G - max(R, B)；alpha 由 greenness 線性決定；半透明像素再把混進去的綠色扣掉（despill）。
 -->
 <style>html, body { margin: 0; background: transparent; } canvas { display: block; }</style>

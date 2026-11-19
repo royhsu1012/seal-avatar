@@ -610,6 +610,17 @@
     pollParams();
   } else if (params.get('demo') === '1') {
     toggleDemo();
+  } else if (params.has('pose')) {
+    // 檢查造型用：?pose=yaw:1,roll:8,state:sleep 固定成一個姿勢不動（換圖時拿來確認圖層對不對得準）
+    const q = { yaw: 0, pitch: 0, roll: 0, blinkL: 0, blinkR: 0, jaw: 0, smile: 0, present: true };
+    let state = 'idle';
+    for (const kv of params.get('pose').split(',')) {
+      const [k, v] = kv.split(':');
+      if (k === 'state') state = v;
+      else if (k in q) q[k] = +v;
+    }
+    paused = true;
+    for (let i = 0; i < 90; i++) rig.apply(q, 1 / 30, state); // 多跑幾幀讓反應淡入到底
   } else if (params.get('autostart') === '1' || MODE === 'tracker' || window.obsstudio) {
     startCamera();
   }

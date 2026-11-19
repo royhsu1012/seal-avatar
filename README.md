@@ -77,6 +77,7 @@ powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 | `mode=tracker` | 追蹤頁：開攝影機追蹤，把參數送到本機伺服器 `/params` |
 | `mode=viewer` | 顯示頁：不開攝影機，從 `/params` 取參數畫海豹。給 OBS 用 |
 | `diag=1` | 診斷模式：每秒把追蹤數值寫一行到 `tools\serve.ps1` 的終端機，方便調整靈敏度。只送到本機伺服器 |
+| `pose=yaw:1,roll:6,state:sleep` | 固定成一個姿勢不動，換圖時用來檢查圖層對不對得準。可用 yaw、pitch、roll、blinkL、blinkR、jaw、smile、state |
 
 ## 接進 OBS、直播與 Teams
 
@@ -250,22 +251,26 @@ desktop/assets/             icon.png、tray.png
 
 ## 角色圖怎麼做的、怎麼換
 
-角色是 **一張去背的 PNG 底圖**（`art/seal.png`，1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
+角色是 **兩張同構圖的去背 PNG**（1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
 
-- **眼睛**：`eye-patches` 先用毛色的小色塊蓋住底圖畫好的眼睛，再用向量畫一對一樣的眼睛。
+- **身體** `art/seal-body.png`：固定不動。頂端多畫了一截圓頂藏在頭後面，`body-mask` 只讓圓頂內側露出來，
+  頭轉動時露出的只會是白毛，不會出現第二層黑色輪廓。
+- **頭** `art/seal-head.png`：轉頭、點頭是平移，側傾是繞脖子旋轉，都只動這一層；幅度上限在 `js/rig.js` 的 `HEAD_MOVE`。
+- **眼睛**：`eye-patches` 先用毛色的小色塊蓋住頭圖畫好的眼睛，再用向量畫一對一樣的眼睛。
   這樣才能眨眼（垂直壓扁）、眼珠跟著轉頭微移、驚訝放大、開心換成笑眼。
-- **嘴巴**：底圖本身是閉嘴微笑；張嘴時才疊一個嘴型在吻部上，依張嘴量從上緣往下拉開。
-- **腮紅**：底圖已經有，開心時再疊一層加深。
+- **嘴巴**：頭圖本身是閉嘴微笑；張嘴時才疊一個嘴型在吻部上，依張嘴量從上緣往下拉開。
+- **腮紅**：頭圖已經有，開心時再疊一層加深。
 - **zzz / !**：睡覺與驚訝的符號。
 
-頭轉、點頭、側傾是整張圖一起位移、旋轉、略微壓扁，疊圖層跟著整張圖動才不會對不準。
+疊圖層放在頭的群組裡，跟著頭一起動才不會對不準。
 
 程式只靠 **圖層 id** 找東西，換圖時保留這些 id：
 
 | id | 內容 | 程式會做的事 |
 |---|---|---|
 | `avatar` | 整隻角色 | 呼吸起伏、開心彈跳 |
-| `head` | 底圖 + 所有疊圖層 | 跟著 yaw / pitch / roll 移動旋轉 |
+| `body` | 身體圖 | 不動 |
+| `head` | 頭圖 + 所有疊圖層 | 跟著 yaw / pitch / roll 平移、繞脖子旋轉 |
 | `eye-left-open` `eye-right-open` | 張開的眼睛 | 眨眼時垂直壓扁，開心時淡出，眼珠微移 |
 | `eye-left-closed` `eye-right-closed` | 閉眼線條 | 眼睛快閉上時淡入 |
 | `eye-left-happy` `eye-right-happy` | 笑眼 | 開心時淡入 |
@@ -275,22 +280,26 @@ desktop/assets/             icon.png、tray.png
 
 「左 / 右」一律指 **畫面上** 的左右。
 
-### 換一張底圖的步驟
+### 換一套底圖的步驟
 
-1. 準備正面、坐姿、嘴閉眼開、純綠色背景的圖（生圖工具的提示詞可參考：front view, sitting, eyes open,
-   mouth closed, solid green background #3CB371, nothing cropped）。
-2. 放到 `art/src/`，用 `tools/chroma-key.html` 去背成透明 PNG（伺服器開著時）：
+1. 先用生圖工具生一張完整的角色：正面、坐姿、嘴閉眼開、純綠色背景（提示詞可參考：front view, sitting,
+   eyes open, mouth closed, solid green background, nothing cropped）。
+2. 再請生圖工具以那張圖為附件，分別「只留頭、其餘填綠」與「去掉頭、把身體頂端補成圓頂、其餘填綠」各生一張，
+   三張的構圖與解析度要一樣，頭圖與身體圖才對得準。
+3. 放到 `art/src/`，用 `tools/chroma-key.html` 把兩張都去背成透明 PNG（伺服器開著時）：
 
    ```powershell
-   chrome --headless=new --default-background-color=00000000 --window-size=1024,1024 --screenshot=art\seal.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/你的圖.webp"
+   chrome --headless=new --default-background-color=00000000 --window-size=1024,1024 --screenshot=art\seal-head.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/你的頭圖.png"
    ```
 
-   邊緣有綠邊就把網址加上 `&hi=170` 之類調低門檻。
-3. 量出新圖的眼睛中心、嘴巴上緣、腮紅位置（座標系就是圖片像素），改 `index.html` 裡疊圖層的座標，
-   以及 `js/rig.js` 最上面的常數（`EYE_L`、`EYE_R`、`MOUTH_TOP` 等）。
-4. `eye-patches` 的顏色改成新圖眼睛旁邊的毛色，大小要蓋得住原本畫好的眼睛。
+   身體圖同樣做一次輸出成 `art\seal-body.png`。邊緣有綠邊就把網址加上 `&hi=170` 之類調低門檻。
+4. 量出新圖的眼睛中心、嘴巴上緣、腮紅位置（座標系就是圖片像素），改 `index.html` 裡疊圖層的座標，
+   以及 `js/rig.js` 最上面的常數（`EYE_L`、`EYE_R`、`MOUTH_TOP`、脖子支點 `NECK` 等）。
+5. `eye-patches` 的顏色改成新圖眼睛旁邊的毛色，大小要蓋得住原本畫好的眼睛。
+6. 調 `index.html` 裡的 `body-mask`：矩形從頭與身體輪廓等寬的高度開始，橢圓比身體圓頂的輪廓內縮約 16 px。
+   用 `?pose=yaw:1,roll:6` 這類網址固定姿勢，檢查轉頭時肩膀處有沒有露出切邊。
 
-目前這張底圖是用生圖工具依參考圖產生的，原始檔在 `art/src/seal.webp`。
+目前的頭圖與身體圖是用生圖工具依參考圖產生的，原始檔在 `art/src/`（`seal.webp` 是整隻的原圖）。
 注意用 file:// 開啟時 Chrome 會擋外部圖片，請一律用本機伺服器。
 
 ## 調整靈敏度
@@ -309,9 +318,10 @@ desktop/assets/             icon.png、tray.png
 ## 專案結構
 
 ```
-index.html          頁面、控制面板、角色（PNG 底圖 + 疊圖層）
-art/seal.png        去背後的角色底圖
-art/src/            底圖的原始檔
+index.html          頁面、控制面板、角色（身體圖 + 頭圖 + 疊圖層）
+art/seal-body.png   去背後的身體圖（固定不動）
+art/seal-head.png   去背後的頭圖（會轉動）
+art/src/            兩張圖的原始檔
 css/style.css       版面與背景模式
 js/rig.js           SealRig：參數 → 位移、變形與反應
 js/app.js           攝影機、MediaPipe、參數計算、平滑、主迴圈
@@ -347,8 +357,9 @@ OBS 的瀏覽器來源確定不給攝影機權限，所以一定要用追蹤頁�
 注意同一台電腦同一時間只能開一個追蹤頁（Chrome 的 `?mode=tracker` 分頁或桌面版其中之一），
 後開的那個會拿不到攝影機。
 
-正式造型已換成生圖工具產生、去背後的白海豹寶寶 PNG，五種反應都已在瀏覽器裡用疊圖層驗證；
-真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。桌面版的安裝檔與可攜版要重新執行 `npm run dist` 才會包進新底圖。
+正式造型已換成生圖工具產生、去背後的白海豹寶寶，拆成身體與頭兩張圖：身體固定不動，只有頭會轉、點、側傾。
+五種反應與轉頭的極端姿勢都已在瀏覽器裡驗證；真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。
+桌面版的安裝檔與可攜版要重新執行 `npm run dist` 才會包進新底圖。
 
 接下來可以做：
 
