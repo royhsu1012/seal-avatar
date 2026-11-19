@@ -351,7 +351,8 @@ desktop/            桌面浮動視窗（Electron），見上面「桌面浮動�
 1. `getUserMedia` 取得攝影機畫面
 2. MediaPipe Face Landmarker 在瀏覽器內（GPU 或 WASM）算出臉部特徵點與 blendshape
 3. 由鼻尖相對臉頰中點算 yaw、相對額頭到上唇區間算 pitch（不用下巴，張嘴才不會誤判成抬頭），由兩眼連線角度算 roll
-4. 從 blendshape 取 `eyeBlinkLeft/Right`、`jawOpen`、`mouthSmileLeft/Right`
+4. 從 blendshape 取 `eyeBlinkLeft/Right`、`jawOpen`、`mouthSmileLeft/Right`；
+   另外把畫面縮成 64 × 48，比較前後兩幀在臉左右兩側的平均亮度變化，當成左右手的動作量
 5. 指數平滑後交給 `SealRig`，用 SVG `transform` 與 `opacity` 畫出來
 6. 依 smile / jaw / 多久沒看到臉判斷狀態，驅動對應反應
 
