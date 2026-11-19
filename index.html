@@ -23,20 +23,18 @@
     <svg id="seal" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
       <defs>
         <filter id="patch-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" /></filter>
-        <filter id="mask-soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4" /></filter>
-        <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留圓頂內側（比身體輪廓內縮約 16px 的橢圓），
-             這樣頭轉動時露出來的只是沒有描邊的白毛，不會出現第二層黑色輪廓 -->
+        <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留一個「脖子」形狀（肩膀往上到 y≈482 後，
+             沿扁橢圓往內收到頭後面）。頭轉動時露出來的是脖子的弧線與白毛，不會出現第二層頭的輪廓 -->
         <mask id="body-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-          <g fill="#fff" filter="url(#mask-soft)">
-            <rect x="0" y="505" width="1024" height="519" />
-            <ellipse cx="529" cy="500" rx="249" ry="316" />
-          </g>
+          <path fill="#fff" d="M 0 505 H 260 L 270 482 A 263 95 0 0 1 802 482 L 814 505 H 1024 V 1024 H 0 Z" />
         </mask>
       </defs>
 
       <g id="avatar">
-        <g id="body">
-          <image href="art/seal-body.png" x="0" y="0" width="1024" height="1024" mask="url(#body-mask)" />
+        <g id="body" mask="url(#body-mask)">
+          <image href="art/seal-body.png" x="0" y="0" width="1024" height="1024" />
+          <!-- 脖子的描邊：接在肩膀描邊的末端往內收，讓轉頭時露出的輪廓是連續的 -->
+          <path id="neck-line" d="M 279 490 A 258 90 0 1 1 793 490" fill="none" stroke="#1E2016" stroke-width="6" stroke-linecap="round" opacity="0.9" />
         </g>
 
         <g id="head">
