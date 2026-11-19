@@ -234,8 +234,8 @@ npm run dist
 exe 沒有數位簽章（正式簽章要付費購買憑證），第一次執行時 Windows SmartScreen 可能顯示「Windows 已保護您的電腦」，
 按「其他資訊」→「仍要執行」即可。打包工具是 [electron-builder](https://www.electron.build/)（MIT）。
 
-換了正式繪圖之後，執行 `npm run icons` 會從 `index.html` 的海豹 SVG 重新產生 `desktop\assets\icon.png`（exe 與視窗圖示）
-和 `tray.png`（系統匣圖示）。
+換了圖之後，執行 `npm run icons` 會用離屏視窗載入 `index.html`（固定姿勢）擷取畫面，重新產生 `desktop\assets\icon.png`
+（整隻，exe 與視窗圖示）和 `tray.png`（頭部，系統匣圖示）；擷取範圍寫在 `desktop/tools/make-icon.js`，依新圖調整。
 
 ### 檔案
 
@@ -244,7 +244,7 @@ desktop/package.json        相依與 electron-builder 打包設定
 desktop/main.js             主程序：視窗、系統匣與右鍵選單、狀態存檔
 desktop/preload.js          注入網頁的桌面層：拖曳區 class、縮放握把、狀態回報
 desktop/server.js           內建靜態伺服器與 /params、/diag（同 tools/serve.ps1）
-desktop/tools/make-icon.js  從海豹圖產生圖示（底圖換成 PNG 後尚未重新產生，圖示仍是舊造型）
+desktop/tools/make-icon.js  擷取頁面畫面產生 exe 與系統匣圖示
 desktop/assets/             icon.png、tray.png
 ```
 
@@ -372,12 +372,12 @@ OBS 的瀏覽器來源確定不給攝影機權限，所以一定要用追蹤頁�
 後開的那個會拿不到攝影機。
 
 正式造型已換成生圖工具產生、去背後的白海豹寶寶，拆成前鰭、身體、頭三張圖：身體固定不動，頭會轉、點、側傾，
-前鰭以肩膀為支點小幅擺動。五種反應與轉頭的極端姿勢都已在瀏覽器裡驗證；真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。
-桌面版的安裝檔與可攜版要重新執行 `npm run dist` 才會包進新底圖。
+前鰭以肩膀為支點小幅擺動，本人揮手時對應的鰭會跟著晃。五種反應與轉頭的極端姿勢都已在瀏覽器裡驗證；
+真人攝影機追蹤已確認方向與手部偵測可用，手部門檻與幅度仍可依個人調整（`TUNING.hand`）。
+桌面版已用新造型重新打包（安裝檔與可攜版）並重新產生圖示；OBS 在新造型下的實測待補。
 
 接下來可以做：
 
-- 桌面版重新打包、圖示換成新造型
 - 眼珠跟著視線移動
 - 更多表情（皺眉、嘟嘴、挑眉）
 - 用音量輔助嘴型，說話更自然
