@@ -30,7 +30,7 @@
   const HEAD_MOVE = { x: 18, y: 12, roll: 6 }; // 頭最多平移幾像素、側傾幾度；再大會在肩膀處露出身體圓頂的遮罩邊
   const EYE_L = { x: 401, y: 350 };
   const EYE_R = { x: 636, y: 350 };
-  const MOUTH_TOP = { x: 515, y: 452 };
+  const MOUTH_TOP = { x: 515, y: 456 }; // 張嘴嘴型的上緣（吻部微笑線），張嘴時以這點為支點往下拉
   const EXCLAIM = { x: 800, y: 250 };
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));

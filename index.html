@@ -23,6 +23,7 @@
     <svg id="seal" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="海豹 VTuber 角色">
       <defs>
         <filter id="patch-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" /></filter>
+        <filter id="soft-1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.8" /></filter>
         <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留一個「脖子」形狀（肩膀往上到 y≈482 後，
              沿扁橢圓往內收到頭後面）。頭轉動時露出來的是脖子的弧線與白毛，不會出現第二層頭的輪廓 -->
         <mask id="body-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
@@ -72,9 +73,10 @@
             </g>
 
             <g id="mouth">
-              <g id="mouth-open" opacity="0">
-                <path d="M 478 452 Q 515 446 552 452 Q 552 512 515 516 Q 478 512 478 452 Z" fill="#5B2A3A" stroke="#2B2628" stroke-width="4" stroke-linejoin="round" />
-                <ellipse cx="515" cy="500" rx="18" ry="11" fill="#F08CA0" />
+              <!-- 圓形的張嘴：上緣固定在吻部的微笑線 (515, 456)，張嘴量越大往下拉得越長 -->
+              <g id="mouth-open" opacity="0" filter="url(#soft-1)">
+                <ellipse cx="515" cy="478" rx="25" ry="22" fill="#5A2F3A" stroke="#3A3032" stroke-width="3" />
+                <ellipse cx="515" cy="490" rx="14" ry="8" fill="#F0A0B0" />
               </g>
             </g>
           </g>
