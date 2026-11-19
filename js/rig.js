@@ -103,11 +103,11 @@
 
       // 頭：只動頭這一層。轉頭 = 左右平移，點頭 = 上下平移，側傾 = 繞脖子旋轉
       const hx = yaw * HEAD_MOVE.x;
-      const hy = pitch * HEAD_MOVE.y;
+      const hy = pitch * HEAD_MOVE.y - surprised * 10; // 驚訝時頭往上彈一下
       this.el.head.setAttribute('transform', `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll)} ${NECK.x} ${NECK.y})`);
 
       // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
-      const eyeScale = 1 + surprised * 0.18;
+      const eyeScale = 1 + surprised * 0.3; // 放大後仍要在 eye-patches 的遮色塊範圍內
       const blinkL = clamp(Math.max(p.blinkL, sleep), 0, 1);
       const blinkR = clamp(Math.max(p.blinkR, sleep), 0, 1);
       const openL = Math.max(0.05, 1 - blinkL);
