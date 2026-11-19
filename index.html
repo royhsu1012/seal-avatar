@@ -9,11 +9,12 @@
 <body class="bg-soft mirror">
   <main id="stage">
     <!--
-      角色 = 兩張同構圖的去背 PNG（1024 x 1024）+ 疊在臉上的向量圖層：
-        art/seal-body.png 身體（固定不動；頂端多畫了一截圓頂藏在頭後面，用 body-mask 把太高的部分遮掉）
+      角色 = 三張同構圖的去背 PNG（1024 x 1024）+ 疊在臉上的向量圖層：
+        art/seal-flippers.png 前鰭（在身體後面，以肩膀為支點小幅擺動）
+        art/seal-body.png 身體（不含前鰭，固定不動；頂端多畫了一截圓頂藏在頭後面，用 body-mask 把太高的部分遮掉）
         art/seal-head.png 頭（轉頭、點頭、側傾都只動這一層，臉上的疊圖層跟著一起動）
       程式只靠下面這些 id 找圖層，換圖時保留 id、依新圖量座標並同步修改 js/rig.js 開頭的常數：
-        avatar / body / head
+        avatar / flipper-left / flipper-right / body / head
         eye-left-open / eye-left-closed / eye-left-happy
         eye-right-open / eye-right-closed / eye-right-happy
         mouth-open / blush / zzz / exclaim
@@ -26,12 +27,20 @@
         <filter id="soft-1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.8" /></filter>
         <!-- 身體圖的圓頂藏在頭後面：y=505 以下全部顯示；以上只留一個「脖子」形狀（肩膀往上到 y≈482 後，
              沿扁橢圓往內收到頭後面）。頭轉動時露出來的是脖子的弧線與白毛，不會出現第二層頭的輪廓 -->
+        <clipPath id="clip-flipper-left"><rect x="0" y="0" width="500" height="1024" /></clipPath>
+        <clipPath id="clip-flipper-right"><rect x="524" y="0" width="500" height="1024" /></clipPath>
         <mask id="body-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
           <path fill="#fff" d="M 0 505 H 260 L 270 482 A 263 95 0 0 1 802 482 L 814 505 H 1024 V 1024 H 0 Z" />
         </mask>
       </defs>
 
       <g id="avatar">
+        <!-- 前鰭：放在身體後面，只有伸出身體外的腳掌看得到。兩隻鰭畫在同一張圖的左右兩半，中間有一條分隔線要裁掉 -->
+        <g id="flippers">
+          <g id="flipper-left"><image href="art/seal-flippers.png" x="0" y="0" width="1024" height="1024" clip-path="url(#clip-flipper-left)" /></g>
+          <g id="flipper-right"><image href="art/seal-flippers.png" x="0" y="0" width="1024" height="1024" clip-path="url(#clip-flipper-right)" /></g>
+        </g>
+
         <g id="body" mask="url(#body-mask)">
           <image href="art/seal-body.png" x="0" y="0" width="1024" height="1024" />
           <!-- 脖子的描邊：接在肩膀描邊的末端往內收，讓轉頭時露出的輪廓是連續的 -->

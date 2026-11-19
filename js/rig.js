@@ -27,6 +27,8 @@
   // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal-head.png、seal-body.png 量出來），換圖時請同步修改
   const BASE_CX = 512, BASE_BOTTOM = 964; // 呼吸與彈跳的支點：身體底部中央
   const NECK = { x: 535, y: 600 }; // 頭部旋轉的支點：頭圖下緣中央偏上（頭圖範圍 x 252-817、y 157-671）
+  const FLIPPER_L = { x: 240, y: 800 }; // 前鰭的支點（肩膀，在身體裡面）；鰭只往離開身體的方向轉，反方向會從身體邊緣露出鰭根
+  const FLIPPER_R = { x: 784, y: 800 };
   const HEAD_MOVE = { x: 18, y: 12, roll: 6 }; // 頭最多平移幾像素、側傾幾度；再大會在肩膀處露出身體圓頂的遮罩邊
   const EYE_L = { x: 401, y: 350 };
   const EYE_R = { x: 636, y: 350 };
@@ -53,6 +55,8 @@
       this.el = {
         avatar: $('avatar'),
         head: $('head'),
+        flipperL: $('flipper-left'),
+        flipperR: $('flipper-right'),
         eyeLOpen: $('eye-left-open'),
         eyeROpen: $('eye-right-open'),
         eyeLClosed: $('eye-left-closed'),
@@ -105,6 +109,15 @@
       const hx = yaw * HEAD_MOVE.x;
       const hy = pitch * HEAD_MOVE.y - surprised * 10; // 驚訝時頭往上彈一下
       this.el.head.setAttribute('transform', `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll)} ${NECK.x} ${NECK.y})`);
+
+      // 前鰭：平常輕輕起伏（0～1.5 度）、開心時拍動（最多再加 6 度）、驚訝時抬起 4 度、睡著時放下；
+      // 角度一律 ≥ 0（左鰭順時針、右鰭逆時針 = 往外抬），兩邊相位稍微錯開才不會像機器
+      const awake = 1 - sleep * 0.7;
+      const flap = happy * 3 * (1 + Math.sin((t * Math.PI * 2) / 0.45));
+      const liftL = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1) + flap + surprised * 4) * awake;
+      const liftR = (0.75 + 0.75 * Math.sin((t * Math.PI * 2) / 3.1 + 1.3) + flap + surprised * 4) * awake;
+      this.el.flipperL.setAttribute('transform', `rotate(${fmt(liftL)} ${FLIPPER_L.x} ${FLIPPER_L.y})`);
+      this.el.flipperR.setAttribute('transform', `rotate(${fmt(-liftR)} ${FLIPPER_R.x} ${FLIPPER_R.y})`);
 
       // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
       const eyeScale = 1 + surprised * 0.3; // 放大後仍要在 eye-patches 的遮色塊範圍內

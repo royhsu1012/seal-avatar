@@ -34,6 +34,7 @@
           "index.html",
           "css/**",
           "js/**",
+          "art/seal-flippers.png",
           "art/seal-body.png",
           "art/seal-head.png",
           "LICENSE"

@@ -251,9 +251,11 @@ desktop/assets/             icon.png、tray.png
 
 ## 角色圖怎麼做的、怎麼換
 
-角色是 **兩張同構圖的去背 PNG**（1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
+角色是 **三張同構圖的去背 PNG**（1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
 
-- **身體** `art/seal-body.png`：固定不動。頂端多畫了一截圓頂藏在頭後面，`body-mask` 只留下「脖子」形狀
+- **前鰭** `art/seal-flippers.png`：放在身體後面，只有伸出肚子外的腳掌看得到。以肩膀為支點小幅擺動：
+  平常輕輕起伏、開心時拍動、驚訝時抬起、睡著時放下。只往離開身體的方向轉，反方向會從身體邊緣露出鰭根。
+- **身體** `art/seal-body.png`（不含前鰭）：固定不動。頂端多畫了一截圓頂藏在頭後面，`body-mask` 只留下「脖子」形狀
   （肩膀以上沿扁橢圓往內收），再用 `neck-line` 補一段描邊接在肩膀描邊末端，頭轉動時露出的是連續的脖子輪廓，
   不會出現第二層頭的輪廓或斷掉的線。
 - **頭** `art/seal-head.png`：轉頭、點頭是平移，側傾是繞脖子旋轉，都只動這一層；幅度上限在 `js/rig.js` 的 `HEAD_MOVE`。
@@ -270,6 +272,7 @@ desktop/assets/             icon.png、tray.png
 | id | 內容 | 程式會做的事 |
 |---|---|---|
 | `avatar` | 整隻角色 | 呼吸起伏、開心彈跳 |
+| `flipper-left` `flipper-right` | 前鰭圖（同一張圖裁左右兩半） | 以肩膀為支點小幅轉動 |
 | `body` | 身體圖 | 不動 |
 | `head` | 頭圖 + 所有疊圖層 | 跟著 yaw / pitch / roll 平移、繞脖子旋轉 |
 | `eye-left-open` `eye-right-open` | 張開的眼睛 | 眨眼時垂直壓扁，開心時淡出，眼珠微移 |
@@ -285,17 +288,18 @@ desktop/assets/             icon.png、tray.png
 
 1. 先用生圖工具生一張完整的角色：正面、坐姿、嘴閉眼開、純綠色背景（提示詞可參考：front view, sitting,
    eyes open, mouth closed, solid green background, nothing cropped）。
-2. 再請生圖工具以那張圖為附件，分別「只留頭、其餘填綠」與「去掉頭、把身體頂端補成圓頂、其餘填綠」各生一張，
-   三張的構圖與解析度要一樣，頭圖與身體圖才對得準。
-3. 放到 `art/src/`，用 `tools/chroma-key.html` 把兩張都去背成透明 PNG（伺服器開著時）：
+2. 再請生圖工具以那張圖為附件，分別生出「只留頭、其餘填綠」、「去掉頭、把身體頂端補成圓頂、去掉前鰭、
+   把身體補完整、其餘填綠」、「只留兩隻前鰭（含鰭根）、其餘填綠」三張。所有圖的構圖與解析度要一樣，
+   圖層才對得準；鰭圖若被生成左右兩格、中間有分隔線，`index.html` 裡的 `clip-flipper-*` 會把分隔線裁掉。
+3. 放到 `art/src/`，用 `tools/chroma-key.html` 把每張都去背成透明 PNG（伺服器開著時）：
 
    ```powershell
    chrome --headless=new --default-background-color=00000000 --window-size=1024,1024 --screenshot=art\seal-head.png "http://localhost:8788/tools/chroma-key.html?src=../art/src/你的頭圖.png"
    ```
 
-   身體圖同樣做一次輸出成 `art\seal-body.png`。邊緣有綠邊就把網址加上 `&hi=170` 之類調低門檻。
+   身體圖與鰭圖同樣做一次，輸出成 `art\seal-body.png`、`art\seal-flippers.png`。邊緣有綠邊就把網址加上 `&hi=170` 之類調低門檻。
 4. 量出新圖的眼睛中心、嘴巴上緣、腮紅位置（座標系就是圖片像素），改 `index.html` 裡疊圖層的座標，
-   以及 `js/rig.js` 最上面的常數（`EYE_L`、`EYE_R`、`MOUTH_TOP`、脖子支點 `NECK` 等）。
+   以及 `js/rig.js` 最上面的常數（`EYE_L`、`EYE_R`、`MOUTH_TOP`、脖子支點 `NECK`、鰭的支點 `FLIPPER_L` / `FLIPPER_R` 等）。
 5. `eye-patches` 的顏色改成新圖眼睛旁邊的毛色，大小要蓋得住原本畫好的眼睛。
 6. 調 `index.html` 裡的 `body-mask` 與 `neck-line`：遮罩的矩形從頭與身體輪廓等寬的高度開始，上面的扁橢圓
    兩端對準肩膀描邊、往內收到頭後面；`neck-line` 沿同一個橢圓畫，兩端疊在肩膀描邊上。
@@ -321,9 +325,10 @@ desktop/assets/             icon.png、tray.png
 
 ```
 index.html          頁面、控制面板、角色（身體圖 + 頭圖 + 疊圖層）
-art/seal-body.png   去背後的身體圖（固定不動）
+art/seal-flippers.png 去背後的前鰭圖（在身體後面，小幅擺動）
+art/seal-body.png   去背後的身體圖（不含前鰭，固定不動）
 art/seal-head.png   去背後的頭圖（會轉動）
-art/src/            兩張圖的原始檔
+art/src/            各圖的原始檔
 css/style.css       版面與背景模式
 js/rig.js           SealRig：參數 → 位移、變形與反應
 js/app.js           攝影機、MediaPipe、參數計算、平滑、主迴圈
@@ -359,8 +364,8 @@ OBS 的瀏覽器來源確定不給攝影機權限，所以一定要用追蹤頁�
 注意同一台電腦同一時間只能開一個追蹤頁（Chrome 的 `?mode=tracker` 分頁或桌面版其中之一），
 後開的那個會拿不到攝影機。
 
-正式造型已換成生圖工具產生、去背後的白海豹寶寶，拆成身體與頭兩張圖：身體固定不動，只有頭會轉、點、側傾。
-五種反應與轉頭的極端姿勢都已在瀏覽器裡驗證；真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。
+正式造型已換成生圖工具產生、去背後的白海豹寶寶，拆成前鰭、身體、頭三張圖：身體固定不動，頭會轉、點、側傾，
+前鰭以肩膀為支點小幅擺動。五種反應與轉頭的極端姿勢都已在瀏覽器裡驗證；真人攝影機追蹤與 OBS、桌面版在新造型下的實測待補。
 桌面版的安裝檔與可攜版要重新執行 `npm run dist` 才會包進新底圖。
 
 接下來可以做：
