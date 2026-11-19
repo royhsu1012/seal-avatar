@@ -24,8 +24,7 @@
 
   // 與 index.html 裡的 SVG 座標對應（1024 x 1024，由 art/seal.png 量出來），換圖時請同步修改
   const BASE_CX = 512, BASE_BOTTOM = 964; // 呼吸與彈跳的支點：身體底部中央
-  const HEAD_PIVOT = { x: 512, y: 700 };  // 側傾的支點，偏下才像整隻在搖
-  const HEAD_CENTER = { x: 512, y: 560 };
+  const HEAD_PIVOT = { x: 512, y: 940 };  // 傾斜與下壓的支點：身體底部中央，底部才不會跑位
   const EYE_L = { x: 403, y: 352 };
   const EYE_R = { x: 637, y: 352 };
   const MOUTH_TOP = { x: 515, y: 452 };
@@ -89,23 +88,21 @@
       this.fx.sleep = lerp(this.fx.sleep, state === 'sleep' ? 1 : 0, k * 0.5);
       const { happy, surprised, sleep } = this.fx;
 
-      // 睡著時頭垂下、側傾
+      // 睡著時回到正位不動（整張圖是一體的，垂頭會把身體一起壓歪）
       const yaw = p.yaw * (1 - sleep);
-      const pitch = lerp(p.pitch, 0.5, sleep);
-      const roll = lerp(p.roll, 8, sleep);
+      const pitch = p.pitch * (1 - sleep);
+      const roll = p.roll * (1 - sleep);
 
       // 呼吸起伏 + 開心時的小彈跳（以身體底部為支點）
       const breath = 1 + 0.01 * Math.sin((t * Math.PI * 2) / 3.6);
       const bounce = happy * 0.02 * Math.max(0, Math.sin((t * Math.PI * 2) / 0.5));
       this.el.avatar.setAttribute('transform', scaleAround(BASE_CX, BASE_BOTTOM, 1 + bounce * 0.4, breath + bounce));
 
-      // 整隻：位移 + 側傾 + 轉頭時略為變窄
-      const hx = yaw * 26;
-      const hy = pitch * 16;
+      // 整隻：以身體底部為支點微傾（轉頭 + 側傾），點頭時略為下壓，轉頭時略為變窄；底部位置保持不動
       this.el.head.setAttribute(
         'transform',
-        `translate(${fmt(hx)} ${fmt(hy)}) rotate(${fmt(roll * 0.7)} ${HEAD_PIVOT.x} ${HEAD_PIVOT.y}) ` +
-          scaleAround(HEAD_CENTER.x, HEAD_CENTER.y, 1 - Math.abs(yaw) * 0.05, 1)
+        `rotate(${fmt(yaw * 6 + roll * 0.5)} ${HEAD_PIVOT.x} ${HEAD_PIVOT.y}) ` +
+          scaleAround(HEAD_PIVOT.x, HEAD_PIVOT.y, 1 - Math.abs(yaw) * 0.05, 1 - Math.max(0, pitch) * 0.04)
       );
 
       // 眼睛：眨眼縮成一條線；驚訝放大；開心換成笑眼；眼珠順著轉頭方向微移
