@@ -253,8 +253,9 @@ desktop/assets/             icon.png、tray.png
 
 角色是 **三張同構圖的去背 PNG**（1024 × 1024）加上 `index.html` 裡疊在臉上的幾個向量圖層：
 
-- **前鰭** `art/seal-flippers.png`：放在身體後面，只有伸出肚子外的腳掌看得到。以肩膀為支點小幅擺動：
-  平常輕輕起伏、開心時拍動、驚訝時抬起、睡著時放下。只往離開身體的方向轉，反方向會從身體邊緣露出鰭根。
+- **前鰭** `art/seal-flippers.png`：放在身體前面（像原圖一樣手放在肚子前），`flipper-mask-*` 只留腳掌與鰭根，
+  往上漸漸淡出，鰭圖上半段多畫的「手臂」才不會疊在身體上。以肩膀為支點小幅擺動：
+  平常輕輕起伏、開心時拍動、驚訝時抬起、睡著時放下。只往離開身體的方向轉。
 - **身體** `art/seal-body.png`（不含前鰭）：固定不動。頂端多畫了一截圓頂藏在頭後面，`body-mask` 只留下「脖子」形狀
   （肩膀以上沿扁橢圓往內收），再用 `neck-line` 補一段描邊接在肩膀描邊末端，頭轉動時露出的是連續的脖子輪廓，
   不會出現第二層頭的輪廓或斷掉的線。
@@ -290,7 +291,8 @@ desktop/assets/             icon.png、tray.png
    eyes open, mouth closed, solid green background, nothing cropped）。
 2. 再請生圖工具以那張圖為附件，分別生出「只留頭、其餘填綠」、「去掉頭、把身體頂端補成圓頂、去掉前鰭、
    把身體補完整、其餘填綠」、「只留兩隻前鰭（含鰭根）、其餘填綠」三張。所有圖的構圖與解析度要一樣，
-   圖層才對得準；鰭圖若被生成左右兩格、中間有分隔線，`index.html` 裡的 `clip-flipper-*` 會把分隔線裁掉。
+   圖層才對得準；鰭圖若被生成左右兩格、中間有分隔線，`index.html` 裡的 `flipper-mask-*` 會把分隔線裁掉，
+   漸層淡出的高度（`flipper-fade`）要對到新圖鰭根描邊消失的地方。
 3. 放到 `art/src/`，用 `tools/chroma-key.html` 把每張都去背成透明 PNG（伺服器開著時）：
 
    ```powershell
@@ -325,7 +327,7 @@ desktop/assets/             icon.png、tray.png
 
 ```
 index.html          頁面、控制面板、角色（身體圖 + 頭圖 + 疊圖層）
-art/seal-flippers.png 去背後的前鰭圖（在身體後面，小幅擺動）
+art/seal-flippers.png 去背後的前鰭圖（在身體前面，只留腳掌與鰭根，小幅擺動）
 art/seal-body.png   去背後的身體圖（不含前鰭，固定不動）
 art/seal-head.png   去背後的頭圖（會轉動）
 art/src/            各圖的原始檔
